@@ -38,7 +38,7 @@ export const documentApi = {
       }
     }),
   getApplicationDocuments: (applicationId) => apiClient.get(`/documents/application/${applicationId}`),
-  getDownloadUrl: (id) => `/api/documents/${id}/download`
+  getDownloadUrl: (id) => `${apiClient.defaults.baseURL}/documents/${id}/download`
 };
 
 export const orderApi = {

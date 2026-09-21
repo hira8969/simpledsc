@@ -36,18 +36,21 @@ app.use(helmet({
 
 // CORS Configuration
 const allowedOrigins = [
-  process.env.CLIENT_URL || 'http://localhost:5173',
+  process.env.CLIENT_URL,
+  'https://simpledsc-oj77-mauve.vercel.app',
   'http://localhost:3000',
   'http://localhost:5174'
-];
+].filter(Boolean).map((origin) => origin.replace(/\/$/, ''));
 
 app.use(cors({
   origin: (origin, callback) => {
+    const normalizedOrigin = origin?.replace(/\/$/, '');
+
     // Allow requests with no origin (e.g. mobile apps or curl)
-    if (!origin || allowedOrigins.includes(origin) || origin.startsWith('http://localhost:')) {
+    if (!origin || allowedOrigins.includes(normalizedOrigin) || origin.startsWith('http://localhost:')) {
       return callback(null, true);
     }
-    return callback(null, true); // Permissive in dev
+    return callback(new Error('Origin is not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -67,6 +70,10 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/api', apiLimiter);
 
 // Health Check API
+app.get('/', (req, res) => {
+  res.json({ service: 'SIMPLDSC Backend API', health: '/api/health' });
+});
+
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'healthy',
