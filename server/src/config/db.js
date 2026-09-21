@@ -1,40 +1,22 @@
 import mongoose from 'mongoose';
 
-let mongoMemoryServer = null;
-
 export const connectDB = async () => {
-  const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/simpldsc';
+  const uri = process.env.MONGODB_URI?.trim();
 
-  try {
-    // Attempt standard connection with 3-second timeout
-    await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 3000,
-    });
-    console.log(`[MongoDB] Connected to database: ${mongoose.connection.host}`);
-  } catch (primaryErr) {
-    console.warn(`[MongoDB] Primary connection failed: ${primaryErr.message}`);
-
-    if (process.env.NODE_ENV !== 'production') {
-      try {
-        console.log('[MongoDB] Initializing embedded in-memory MongoDB for local development...');
-        const { MongoMemoryServer } = await import('mongodb-memory-server');
-        mongoMemoryServer = await MongoMemoryServer.create();
-        const memUri = mongoMemoryServer.getUri();
-        await mongoose.connect(memUri);
-        console.log(`[MongoDB] Connected to in-memory MongoDB at: ${memUri}`);
-      } catch (memErr) {
-        console.error('[MongoDB] Failed to start in-memory MongoDB:', memErr);
-        throw memErr;
-      }
-    } else {
-      throw primaryErr;
-    }
+  if (!uri) {
+    throw new Error('MONGODB_URI is missing. Configure your MongoDB Atlas connection string in server/.env.');
   }
+
+  if (!/^mongodb(?:\+srv)?:\/\//.test(uri)) {
+    throw new Error('MONGODB_URI must start with mongodb:// or mongodb+srv://.');
+  }
+
+  await mongoose.connect(uri, {
+    serverSelectionTimeoutMS: 10000,
+  });
+  console.log(`[MongoDB] Connected to Atlas database: ${mongoose.connection.name}`);
 };
 
 export const disconnectDB = async () => {
   await mongoose.disconnect();
-  if (mongoMemoryServer) {
-    await mongoMemoryServer.stop();
-  }
 };
