@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useToast } from '../../contexts/ToastContext.jsx';
@@ -9,16 +9,25 @@ import { ShieldCheck, Phone, ArrowRight, Sparkles, RefreshCw, KeyRound } from 'l
 export const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { sendOtp, verifyOtp } = useAuth();
+  const { sendOtp, resendOtp, verifyOtp } = useAuth();
   const { success, error, info } = useToast();
 
   const [step, setStep] = useState('MOBILE'); // 'MOBILE' or 'OTP'
   const [mobile, setMobile] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [demoCode, setDemoCode] = useState(null);
 
   const from = location.state?.from?.pathname || '/dashboard';
+
+  useEffect(() => {
+    if (!resendCooldown) return undefined;
+    const timer = window.setInterval(() => {
+      setResendCooldown((seconds) => Math.max(seconds - 1, 0));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [resendCooldown]);
 
   const handleSendOtp = async (e) => {
     if (e) e.preventDefault();
@@ -37,6 +46,7 @@ export const Login = () => {
         setOtp(res.demoOtp); // Auto-fill for frictionless testing
       }
       setStep('OTP');
+      setResendCooldown(30);
     } catch (err) {
       error(err.message || 'Failed to send OTP. Please try again.');
     } finally {
@@ -59,6 +69,21 @@ export const Login = () => {
       navigate(from, { replace: true });
     } catch (err) {
       error(err.message || 'Invalid or expired OTP. Please check the code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0) return;
+    setLoading(true);
+    try {
+      const clean = mobile.replace(/\D/g, '').slice(-10);
+      const res = await resendOtp(clean, 'LOGIN');
+      success(res.message || 'A new OTP has been sent.');
+      setResendCooldown(30);
+    } catch (err) {
+      error(err.message || 'Unable to resend OTP. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -191,12 +216,12 @@ export const Login = () => {
 
               <button
                 type="button"
-                onClick={handleSendOtp}
-                disabled={loading}
-                className="text-indigo-600 font-semibold hover:underline flex items-center gap-1"
+                onClick={handleResendOtp}
+                disabled={loading || resendCooldown > 0}
+                className="text-indigo-600 font-semibold hover:underline flex items-center gap-1 disabled:text-slate-400 disabled:no-underline"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                <span>Resend Code</span>
+                <span>{resendCooldown ? `Resend in ${resendCooldown}s` : 'Resend Code'}</span>
               </button>
             </div>
           </form>

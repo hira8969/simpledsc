@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { authApi } from '../api/endpoints.js';
+import { retryMSG91Otp, sendMSG91Otp, verifyMSG91Otp } from '../api/msg91Widget.js';
 
 const AuthContext = createContext(null);
 
@@ -14,6 +15,7 @@ export const AuthProvider = ({ children }) => {
   });
   const [token, setToken] = useState(() => localStorage.getItem('simpldsc_token') || null);
   const [isLoading, setIsLoading] = useState(true);
+  const msg91RequestId = useRef(null);
 
   // Sync / Verify with backend on mount
   const refreshUser = useCallback(async () => {
@@ -46,12 +48,25 @@ export const AuthProvider = ({ children }) => {
 
   // Request Mobile OTP
   const sendOtp = async (mobile, purpose = 'LOGIN') => {
-    return await authApi.sendOtp(mobile, purpose);
+    const validation = await authApi.sendOtp(mobile, purpose);
+    const result = await sendMSG91Otp(validation.mobile);
+    msg91RequestId.current = result.reqId;
+    return validation;
+  };
+
+  const resendOtp = async (mobile, purpose = 'LOGIN') => {
+    if (!msg91RequestId.current) throw new Error('OTP session expired. Please request a new OTP.');
+    const validation = await authApi.sendOtp(mobile, purpose);
+    const result = await retryMSG91Otp(msg91RequestId.current);
+    msg91RequestId.current = result.reqId;
+    return validation;
   };
 
   // Verify OTP for Customer login / registration
   const verifyOtp = async (mobile, otp, name, email, purpose = 'LOGIN') => {
-    const res = await authApi.verifyOtp(mobile, otp, name, email, purpose);
+    if (!msg91RequestId.current) throw new Error('OTP session expired. Please request a new OTP.');
+    const { accessToken } = await verifyMSG91Otp(otp, msg91RequestId.current);
+    const res = await authApi.verifyOtp(mobile, accessToken, name, email, purpose);
     if (res?.token && res?.user) {
       setToken(res.token);
       setUser(res.user);
@@ -103,6 +118,7 @@ export const AuthProvider = ({ children }) => {
         isAdmin,
         isStaff,
         sendOtp,
+        resendOtp,
         verifyOtp,
         adminLogin,
         logout,

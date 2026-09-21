@@ -12,7 +12,7 @@ export const apiLimiter = rateLimit({
   legacyHeaders: false
 });
 
-// Stricter limiter for OTP generation: 5 requests per 10 minutes
+// Stricter limiter for OTP requests: 10 requests per 10 minutes
 export const otpLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   max: 10,

@@ -16,12 +16,12 @@ export const sendOtp = async (req, res, next) => {
 
 export const verifyOtp = async (req, res, next) => {
   try {
-    const { mobile, otp, name, email, purpose = 'LOGIN' } = req.body;
-    if (!mobile || !otp) {
-      return res.status(400).json({ success: false, message: 'Mobile and OTP are required' });
+    const { mobile, accessToken, name, email, purpose = 'LOGIN' } = req.body;
+    if (!mobile || !accessToken) {
+      return res.status(400).json({ success: false, message: 'Mobile and MSG91 access token are required' });
     }
 
-    const result = await AuthService.verifyOtp(mobile, otp, { name, email }, purpose);
+    const result = await AuthService.verifyOtp(mobile, accessToken, { name, email }, purpose);
 
     // Set HTTP-only secure cookie for additional session protection
     res.cookie('token', result.token, {

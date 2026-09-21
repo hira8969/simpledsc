@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useToast } from '../../contexts/ToastContext.jsx';
@@ -8,7 +8,7 @@ import { ShieldCheck, ArrowRight, RefreshCw } from 'lucide-react';
 
 export const Register = () => {
   const navigate = useNavigate();
-  const { sendOtp, verifyOtp } = useAuth();
+  const { sendOtp, resendOtp, verifyOtp } = useAuth();
   const { success, error } = useToast();
 
   const [step, setStep] = useState('DETAILS');
@@ -19,7 +19,16 @@ export const Register = () => {
   });
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [demoCode, setDemoCode] = useState(null);
+
+  useEffect(() => {
+    if (!resendCooldown) return undefined;
+    const timer = window.setInterval(() => {
+      setResendCooldown((seconds) => Math.max(seconds - 1, 0));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [resendCooldown]);
 
   const handleSendOtp = async (e) => {
     e.preventDefault();
@@ -42,6 +51,7 @@ export const Register = () => {
         setOtp(res.demoOtp);
       }
       setStep('OTP');
+      setResendCooldown(30);
     } catch (err) {
       error(err.message || 'Failed to send OTP.');
     } finally {
@@ -64,6 +74,21 @@ export const Register = () => {
       navigate('/dashboard', { replace: true });
     } catch (err) {
       error(err.message || 'OTP verification failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0) return;
+    setLoading(true);
+    try {
+      const clean = formData.mobile.replace(/\D/g, '').slice(-10);
+      const res = await resendOtp(clean, 'REGISTER');
+      success(res.message || 'A new OTP has been sent.');
+      setResendCooldown(30);
+    } catch (err) {
+      error(err.message || 'Unable to resend OTP. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -192,12 +217,12 @@ export const Register = () => {
               </button>
               <button
                 type="button"
-                onClick={handleSendOtp}
-                disabled={loading}
-                className="text-indigo-600 font-semibold hover:underline flex items-center gap-1"
+                onClick={handleResendOtp}
+                disabled={loading || resendCooldown > 0}
+                className="text-indigo-600 font-semibold hover:underline flex items-center gap-1 disabled:text-slate-400 disabled:no-underline"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                <span>Resend Code</span>
+                <span>{resendCooldown ? `Resend in ${resendCooldown}s` : 'Resend Code'}</span>
               </button>
             </div>
           </form>
