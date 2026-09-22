@@ -37,17 +37,26 @@ app.use(helmet({
 // CORS Configuration
 const allowedOrigins = [
   process.env.CLIENT_URL,
+  process.env.FRONTEND_URL,
   'https://simpledsc-oj77-mauve.vercel.app',
   'http://localhost:3000',
   'http://localhost:5174'
 ].filter(Boolean).map((origin) => origin.replace(/\/$/, ''));
+
+const isAllowedVercelPreview = (origin) =>
+  /^https:\/\/[a-z0-9-]+(?:-[a-z0-9-]+)*\.vercel\.app$/i.test(origin);
 
 app.use(cors({
   origin: (origin, callback) => {
     const normalizedOrigin = origin?.replace(/\/$/, '');
 
     // Allow requests with no origin (e.g. mobile apps or curl)
-    if (!origin || allowedOrigins.includes(normalizedOrigin) || origin.startsWith('http://localhost:')) {
+    if (
+      !origin ||
+      allowedOrigins.includes(normalizedOrigin) ||
+      isAllowedVercelPreview(normalizedOrigin) ||
+      origin.startsWith('http://localhost:')
+    ) {
       return callback(null, true);
     }
     return callback(new Error('Origin is not allowed by CORS'));
