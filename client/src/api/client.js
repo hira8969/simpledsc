@@ -1,7 +1,10 @@
 import axios from 'axios';
 
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
+const defaultApiUrl = 'https://simpledsc-1.onrender.com/api';
+
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://simpledsc-1.onrender.com/api',
+  baseURL: configuredApiUrl || defaultApiUrl,
   headers: {
     'Content-Type': 'application/json'
   },
