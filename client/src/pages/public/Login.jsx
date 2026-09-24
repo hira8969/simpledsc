@@ -67,7 +67,7 @@ export const Login = () => {
       await sendOtp(clean, 'LOGIN');
       setOtpSent(true);
     } catch (err) {
-      setErrorMsg(err.message || 'Failed to send OTP.');
+      setErrorMsg(err.response?.data?.message || err.message || 'Failed to send OTP.');
     } finally {
       setLoading(false);
     }
@@ -92,7 +92,7 @@ export const Login = () => {
         navigate(from || '/dashboard');
       }
     } catch (err) {
-      setErrorMsg(err.message || 'Invalid OTP code.');
+      setErrorMsg(err.response?.data?.message || err.message || 'Invalid OTP code.');
     } finally {
       setLoading(false);
     }
@@ -251,9 +251,24 @@ export const Login = () => {
           /* Mobile OTP Flow */
           <form onSubmit={otpSent ? handleVerifyOtp : handleSendOtp} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-[#16162D] mb-1">
-                10-Digit Mobile Number
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-[#16162D]">
+                  10-Digit Mobile Number
+                </label>
+                {otpSent && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOtpSent(false);
+                      setOtp('');
+                      setErrorMsg(null);
+                    }}
+                    className="text-[11px] font-bold text-[#5B2EFF] hover:underline"
+                  >
+                    Change Number
+                  </button>
+                )}
+              </div>
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#70708A]">
                   +91
@@ -266,32 +281,53 @@ export const Login = () => {
                   value={mobile}
                   onChange={(e) => setMobile(e.target.value.replace(/\D/g, ''))}
                   placeholder="9876543210"
-                  className="w-full pl-12 pr-4 py-3 rounded-xl border border-[#E5E2F0] bg-[#FAF9FF] text-sm font-semibold text-[#16162D] focus:outline-none focus:border-[#5B2EFF]"
+                  className={`w-full pl-12 pr-4 py-3 rounded-xl border border-[#E5E2F0] text-sm font-semibold text-[#16162D] focus:outline-none focus:border-[#5B2EFF] ${
+                    otpSent ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-[#FAF9FF]'
+                  }`}
                 />
               </div>
             </div>
 
             {otpSent && (
-              <div>
-                <label className="block text-xs font-bold text-[#16162D] mb-1">
-                  Enter OTP Code
-                </label>
-                <input
-                  type="text"
-                  maxLength={6}
-                  required
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  placeholder="Enter 6-digit OTP"
-                  className="w-full px-4 py-3 rounded-xl border border-[#E5E2F0] bg-[#FAF9FF] text-sm text-center font-bold tracking-widest text-[#16162D] focus:outline-none focus:border-[#5B2EFF]"
-                />
-              </div>
+              <>
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center justify-between">
+                  <span className="font-medium">
+                    OTP sent via Voice Call / SMS to <strong>+91 {mobile}</strong>
+                  </span>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-[#16162D]">
+                      Enter 6-Digit OTP Code
+                    </label>
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={handleSendOtp}
+                      className="text-[11px] font-bold text-[#5B2EFF] hover:underline disabled:opacity-50"
+                    >
+                      Resend OTP
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    required
+                    autoFocus
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Enter 6-digit OTP"
+                    className="w-full px-4 py-3 rounded-xl border border-[#E5E2F0] bg-[#FAF9FF] text-base text-center font-bold tracking-widest text-[#16162D] focus:outline-none focus:border-[#5B2EFF] focus:bg-white transition-all"
+                  />
+                </div>
+              </>
             )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 rounded-full bg-[#5B2EFF] text-white font-bold text-sm hover:bg-[#4A22DE] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full py-3.5 rounded-full bg-[#5B2EFF] text-white font-bold text-sm hover:bg-[#4A22DE] transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-md"
             >
               {loading ? (
                 <>

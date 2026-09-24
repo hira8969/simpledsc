@@ -2,8 +2,8 @@ import { apiClient } from './client.js';
 
 export const authApi = {
   sendOtp: (mobile, purpose = 'LOGIN') => apiClient.post('/auth/send-otp', { mobile, purpose }),
-  verifyOtp: (mobile, accessToken, name, email, purpose = 'LOGIN') =>
-    apiClient.post('/auth/verify-otp', { mobile, accessToken, name, email, purpose }),
+  verifyOtp: (mobile, otp, name, email, purpose = 'LOGIN') =>
+    apiClient.post('/auth/verify-otp', { mobile, otp, otpCode: otp, accessToken: otp, name, email, purpose }),
   adminLogin: (email, password) => apiClient.post('/auth/admin-login', { email, password }),
   getMe: () => apiClient.get('/auth/me'),
   logout: () => apiClient.post('/auth/logout')

@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { authApi } from '../api/endpoints.js';
-import { retryMSG91Otp, sendMSG91Otp, verifyMSG91Otp } from '../api/msg91Widget.js';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -93,32 +92,26 @@ export const AuthProvider = ({ children }) => {
 
   // Request Mobile OTP
   const sendOtp = async (mobile, purpose = 'LOGIN') => {
-    const validation = await authApi.sendOtp(mobile, purpose);
-    const result = await sendMSG91Otp(validation.mobile);
-    msg91RequestId.current = result.reqId;
-    return validation;
+    const res = await authApi.sendOtp(mobile, purpose);
+    return res?.data || res;
   };
 
   const resendOtp = async (mobile, purpose = 'LOGIN') => {
-    if (!msg91RequestId.current) throw new Error('OTP session expired. Please request a new OTP.');
-    const validation = await authApi.sendOtp(mobile, purpose);
-    const result = await retryMSG91Otp(msg91RequestId.current);
-    msg91RequestId.current = result.reqId;
-    return validation;
+    const res = await authApi.sendOtp(mobile, purpose);
+    return res?.data || res;
   };
 
   // Verify OTP for Customer login / registration
   const verifyOtp = async (mobile, otp, name, email, purpose = 'LOGIN') => {
-    if (!msg91RequestId.current) throw new Error('OTP session expired. Please request a new OTP.');
-    const { accessToken } = await verifyMSG91Otp(otp, msg91RequestId.current);
-    const res = await authApi.verifyOtp(mobile, accessToken, name, email, purpose);
-    if (res?.token && res?.user) {
-      setToken(res.token);
-      setUser(res.user);
-      localStorage.setItem('simpldsc_token', res.token);
-      localStorage.setItem('simpldsc_user', JSON.stringify(res.user));
+    const res = await authApi.verifyOtp(mobile, otp, name, email, purpose);
+    const data = res?.data || res;
+    if (data?.token && data?.user) {
+      setToken(data.token);
+      setUser(data.user);
+      localStorage.setItem('simpldsc_token', data.token);
+      localStorage.setItem('simpldsc_user', JSON.stringify(data.user));
     }
-    return res;
+    return data;
   };
 
   // Logout
