@@ -1,6 +1,5 @@
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User.js';
-import { USER_ROLES } from '../config/constants.js';
 
 export const authenticate = async (req, res, next) => {
   try {
@@ -22,7 +21,8 @@ export const authenticate = async (req, res, next) => {
     const secret = process.env.JWT_SECRET || 'simpldsc_super_secure_jwt_secret_key_2026_dev_prod';
     const decoded = jwt.verify(token, secret);
 
-    const user = await User.findById(decoded.userId).select('-__v');
+    const userId = decoded.userId || decoded.id;
+    const user = await User.findById(userId).select('-__v');
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -53,10 +53,13 @@ export const requireRoles = (...roles) => {
       return res.status(401).json({ success: false, message: 'Authentication required' });
     }
 
-    if (!roles.includes(req.user.role)) {
+    const userRole = (req.user.role || '').toLowerCase();
+    const normalizedRoles = roles.map(r => String(r).toLowerCase());
+
+    if (!normalizedRoles.includes(userRole)) {
       return res.status(403).json({
         success: false,
-        message: `Access denied. Requires one of [${roles.join(', ')}] privileges.`
+        message: `Access denied. Requires admin privileges.`
       });
     }
 
@@ -64,5 +67,5 @@ export const requireRoles = (...roles) => {
   };
 };
 
-export const requireAdmin = requireRoles(USER_ROLES.ADMIN);
-export const requireAdminOrStaff = requireRoles(USER_ROLES.ADMIN, USER_ROLES.STAFF);
+export const requireAdmin = requireRoles('admin');
+export const requireAdminOrStaff = requireRoles('admin', 'staff');

@@ -1,5 +1,6 @@
 const MSG91_SCRIPT_URL = 'https://verify.msg91.com/otp-provider.js';
 const widgetId = import.meta.env.VITE_MSG91_WIDGET_ID || '3669756d4246323334383333';
+const tokenAuth = import.meta.env.VITE_MSG91_TOKEN_AUTH?.trim();
 
 let widgetReadyPromise;
 
@@ -15,6 +16,25 @@ const loadWidget = () => {
   if (widgetReadyPromise) return widgetReadyPromise;
 
   widgetReadyPromise = new Promise((resolve, reject) => {
+    if (!tokenAuth) {
+      reject(new Error('MSG91 OTP is not configured. Add VITE_MSG91_TOKEN_AUTH in Vercel.'));
+      return;
+    }
+
+    const waitForMethods = (startedAt = Date.now()) => {
+      if (typeof window.sendOtp === 'function') {
+        resolve();
+        return;
+      }
+
+      if (Date.now() - startedAt >= 5000) {
+        reject(new Error('MSG91 OTP service is not ready. Check Widget ID, Token Auth, and allowed domain settings.'));
+        return;
+      }
+
+      window.setTimeout(() => waitForMethods(startedAt), 100);
+    };
+
     const initialize = () => {
       if (typeof window.initSendOTP !== 'function') {
         reject(new Error('MSG91 OTP widget could not be initialized.'));
@@ -23,14 +43,14 @@ const loadWidget = () => {
 
       window.initSendOTP({
         widgetId,
-        tokenAuth: '',
+        tokenAuth,
         identifier: '',
         exposeMethods: true,
         captchaRenderId: '',
         success: () => {},
         failure: () => {}
       });
-      resolve();
+      waitForMethods();
     };
 
     if (window.initSendOTP) {

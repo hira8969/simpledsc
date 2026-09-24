@@ -29,9 +29,9 @@ export const AdminLogin = () => {
   };
 
   const prefillAdmin = () => {
-    setEmail('admin@simpldsc.com');
-    setPassword('Admin@SimplDSC2026!');
-    info('Prefilled Administrator Credentials');
+    setEmail('admin@simpldsc.in');
+    setPassword('AdminPassword@123');
+    info('Prefilled Administrator Credentials (admin@simpldsc.in / AdminPassword@123)');
   };
 
   return (

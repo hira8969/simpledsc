@@ -22,6 +22,9 @@ import renewalRoutes from './routes/renewalRoutes.js';
 import supportRoutes from './routes/supportRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import faqRoutes from './routes/faqRoutes.js';
+import contactRoutes from './routes/contactRoutes.js';
+import dscRoutes from './routes/dscRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -105,6 +108,9 @@ app.use('/api/renewals', renewalRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/faqs', faqRoutes);
+app.use('/api/contact', contactRoutes);
+app.use('/api/dsc', dscRoutes);
 
 // Error Handling
 app.use(notFoundHandler);

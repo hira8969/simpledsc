@@ -1,232 +1,211 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.jsx';
-import { useToast } from '../../contexts/ToastContext.jsx';
-import { Button } from '../../components/ui/Button.jsx';
-import { OTPInput } from '../../components/ui/OTPInput.jsx';
-import { ShieldCheck, ArrowRight, RefreshCw } from 'lucide-react';
+import { Logo } from '../../components/ui/Logo.jsx';
+import {
+  User,
+  Mail,
+  Phone,
+  Lock,
+  ArrowRight,
+  ShieldCheck,
+  AlertCircle,
+  Loader2
+} from 'lucide-react';
 
 export const Register = () => {
   const navigate = useNavigate();
-  const { sendOtp, resendOtp, verifyOtp } = useAuth();
-  const { success, error } = useToast();
+  const { register } = useAuth();
 
-  const [step, setStep] = useState('DETAILS');
   const [formData, setFormData] = useState({
     name: '',
-    mobile: '',
-    email: ''
+    email: '',
+    phone: '',
+    password: '',
+    confirmPassword: ''
   });
-  const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
-  const [resendCooldown, setResendCooldown] = useState(0);
-  const [demoCode, setDemoCode] = useState(null);
+  const [errorMsg, setErrorMsg] = useState(null);
 
-  useEffect(() => {
-    if (!resendCooldown) return undefined;
-    const timer = window.setInterval(() => {
-      setResendCooldown((seconds) => Math.max(seconds - 1, 0));
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [resendCooldown]);
-
-  const handleSendOtp = async (e) => {
-    e.preventDefault();
-    const clean = formData.mobile.replace(/\D/g, '').slice(-10);
-    if (!formData.name.trim()) {
-      error('Please enter your full legal name.');
-      return;
-    }
-    if (clean.length !== 10) {
-      error('Please enter a valid 10-digit Indian mobile number.');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const res = await sendOtp(clean, 'REGISTER');
-      success(res.message || 'OTP sent successfully!');
-      if (res.demoOtp) {
-        setDemoCode(res.demoOtp);
-        setOtp(res.demoOtp);
-      }
-      setStep('OTP');
-      setResendCooldown(30);
-    } catch (err) {
-      error(err.message || 'Failed to send OTP.');
-    } finally {
-      setLoading(false);
-    }
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (errorMsg) setErrorMsg(null);
   };
 
-  const handleVerifyOtp = async (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
-    if (otp.length !== 6) {
-      error('Please enter the 6-digit OTP.');
+    if (!formData.name.trim() || !formData.email.trim() || !formData.password) {
+      setErrorMsg('Please complete all required fields.');
+      return;
+    }
+    if (formData.password.length < 6) {
+      setErrorMsg('Password must be at least 6 characters.');
+      return;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      setErrorMsg('Passwords do not match.');
       return;
     }
 
-    setLoading(true);
     try {
-      const clean = formData.mobile.replace(/\D/g, '').slice(-10);
-      const res = await verifyOtp(clean, otp, formData.name, formData.email, 'REGISTER');
-      success(`Registration successful! Welcome to SimplDSC, ${res.user?.name}!`);
-      navigate('/dashboard', { replace: true });
+      setLoading(true);
+      setErrorMsg(null);
+      await register({
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
+        password: formData.password
+      });
+      navigate('/dashboard');
     } catch (err) {
-      error(err.message || 'OTP verification failed.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResendOtp = async () => {
-    if (resendCooldown > 0) return;
-    setLoading(true);
-    try {
-      const clean = formData.mobile.replace(/\D/g, '').slice(-10);
-      const res = await resendOtp(clean, 'REGISTER');
-      success(res.message || 'A new OTP has been sent.');
-      setResendCooldown(30);
-    } catch (err) {
-      error(err.message || 'Unable to resend OTP. Please try again.');
+      setErrorMsg(err.response?.data?.message || err.message || 'Registration failed.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center py-12 px-4 sm:px-6">
-      <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-card space-y-6">
-        <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center mx-auto shadow-md shadow-indigo-500/25">
-            <ShieldCheck className="w-7 h-7 stroke-[2.2]" />
-          </div>
-          <h2 className="text-2xl font-extrabold text-slate-900 font-sans tracking-tight">
-            Create Customer Account
+    <div className="min-h-[85vh] bg-[#FAF9FF] flex items-center justify-center py-12 px-4 sm:px-6">
+      <div className="w-full max-w-md bg-white rounded-3xl p-8 border border-[#E5E2F0] shadow-card space-y-6">
+        {/* Brand Header */}
+        <div className="text-center space-y-3">
+          <Link to="/" className="inline-block">
+            <Logo size="md" showTagline={false} />
+          </Link>
+          <h2 className="text-2xl font-black text-[#11112F] tracking-tight">
+            Create an Account
           </h2>
-          <p className="text-xs text-slate-500">
-            {step === 'DETAILS'
-              ? 'Join 25,000+ applicants using fast paperless digital signatures'
-              : `Enter verification OTP sent to +91 ${formData.mobile}`}
+          <p className="text-xs text-[#70708A]">
+            Get your Class 2 & Class 3 Digital Signature Certificate online
           </p>
         </div>
 
-        {step === 'DETAILS' ? (
-          <form onSubmit={handleSendOtp} className="space-y-4">
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">
-                Full Legal Name *
-              </label>
+        {errorMsg && (
+          <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-2 text-xs font-semibold text-rose-700">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleRegister} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-[#16162D] mb-1">
+              Full Legal Name *
+            </label>
+            <div className="relative">
+              <User className="w-4 h-4 text-[#70708A] absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
+                name="name"
                 required
-                placeholder="As printed on your PAN card"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                onChange={handleChange}
+                placeholder="As printed on PAN card"
+                className="w-full pl-10 pr-4 py-3 rounded-xl border border-[#E5E2F0] bg-[#FAF9FF] text-sm text-[#16162D] focus:outline-none focus:border-[#5B2EFF] focus:bg-white transition-all"
               />
             </div>
+          </div>
 
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">
-                Mobile Number (10 digits) *
-              </label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">
-                  +91
-                </span>
-                <input
-                  type="tel"
-                  maxLength={10}
-                  required
-                  placeholder="9876543210"
-                  value={formData.mobile}
-                  onChange={(e) => setFormData({ ...formData, mobile: e.target.value.replace(/\D/g, '') })}
-                  className="w-full pl-12 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">
-                Email Address (Optional)
-              </label>
+          <div>
+            <label className="block text-xs font-bold text-[#16162D] mb-1">
+              Email Address *
+            </label>
+            <div className="relative">
+              <Mail className="w-4 h-4 text-[#70708A] absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="email"
-                placeholder="For invoice and certificate delivery"
+                name="email"
+                required
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                onChange={handleChange}
+                placeholder="name@example.com"
+                className="w-full pl-10 pr-4 py-3 rounded-xl border border-[#E5E2F0] bg-[#FAF9FF] text-sm text-[#16162D] focus:outline-none focus:border-[#5B2EFF] focus:bg-white transition-all"
               />
             </div>
+          </div>
 
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              className="w-full"
-              isLoading={loading}
-              disabled={!formData.name || formData.mobile.length < 10}
-            >
-              <span>Continue with Mobile OTP</span>
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-
-            <div className="pt-2 text-center text-xs text-slate-500">
-              Already registered?{' '}
-              <Link to="/login" className="text-indigo-600 font-bold hover:underline">
-                Sign in here
-              </Link>
+          <div>
+            <label className="block text-xs font-bold text-[#16162D] mb-1">
+              Mobile Number (10 digits) *
+            </label>
+            <div className="relative">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#70708A]">
+                +91
+              </span>
+              <input
+                type="tel"
+                name="phone"
+                maxLength={10}
+                required
+                value={formData.phone}
+                onChange={handleChange}
+                placeholder="9876543210"
+                className="w-full pl-12 pr-4 py-3 rounded-xl border border-[#E5E2F0] bg-[#FAF9FF] text-sm text-[#16162D] focus:outline-none focus:border-[#5B2EFF] focus:bg-white transition-all"
+              />
             </div>
-          </form>
-        ) : (
-          <form onSubmit={handleVerifyOtp} className="space-y-5 animate-fade-in">
-            {demoCode && (
-              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-center justify-between">
-                <span>Demo OTP Code: <strong>{demoCode}</strong></span>
-                <span className="text-[10px] bg-emerald-200/80 px-2 py-0.5 rounded font-bold">Dev Mode</span>
-              </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-[#16162D] mb-1">
+              Password *
+            </label>
+            <div className="relative">
+              <Lock className="w-4 h-4 text-[#70708A] absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="password"
+                name="password"
+                required
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Minimum 6 characters"
+                className="w-full pl-10 pr-4 py-3 rounded-xl border border-[#E5E2F0] bg-[#FAF9FF] text-sm text-[#16162D] focus:outline-none focus:border-[#5B2EFF] focus:bg-white transition-all"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-[#16162D] mb-1">
+              Confirm Password *
+            </label>
+            <div className="relative">
+              <Lock className="w-4 h-4 text-[#70708A] absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="password"
+                name="confirmPassword"
+                required
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                placeholder="Re-enter password"
+                className="w-full pl-10 pr-4 py-3 rounded-xl border border-[#E5E2F0] bg-[#FAF9FF] text-sm text-[#16162D] focus:outline-none focus:border-[#5B2EFF] focus:bg-white transition-all"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3.5 rounded-full bg-[#5B2EFF] text-white font-bold text-sm hover:bg-[#4A22DE] transition-all duration-200 shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Creating Account...</span>
+              </>
+            ) : (
+              <>
+                <span>Register Account</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
             )}
+          </button>
+        </form>
 
-            <div>
-              <label className="text-xs font-bold text-slate-700 block text-center mb-1">
-                Enter 6-Digit OTP
-              </label>
-              <OTPInput length={6} value={otp} onChange={setOtp} disabled={loading} />
-            </div>
-
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              className="w-full"
-              isLoading={loading}
-              disabled={otp.length !== 6}
-            >
-              <span>Complete Registration</span>
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-
-            <div className="flex items-center justify-between pt-2 text-xs">
-              <button
-                type="button"
-                onClick={() => setStep('DETAILS')}
-                className="text-slate-500 hover:text-slate-800"
-              >
-                Change details
-              </button>
-              <button
-                type="button"
-                onClick={handleResendOtp}
-                disabled={loading || resendCooldown > 0}
-                className="text-indigo-600 font-semibold hover:underline flex items-center gap-1 disabled:text-slate-400 disabled:no-underline"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>{resendCooldown ? `Resend in ${resendCooldown}s` : 'Resend Code'}</span>
-              </button>
-            </div>
-          </form>
-        )}
+        <div className="pt-4 border-t border-[#E5E2F0] text-center text-xs text-[#70708A]">
+          Already have an account?{' '}
+          <Link to="/login" className="text-[#5B2EFF] font-bold hover:underline">
+            Sign in here
+          </Link>
+        </div>
       </div>
     </div>
   );

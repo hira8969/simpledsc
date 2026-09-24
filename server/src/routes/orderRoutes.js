@@ -11,6 +11,7 @@ router.get('/track/:orderId', trackOrder);
 router.use(authenticate);
 router.post('/', createOrder);
 router.get('/my', getMyOrders);
-router.get('/:orderId', getOrderById);
+router.get('/my-orders', getMyOrders);
+router.get('/:id', getOrderById);
 
 export default router;

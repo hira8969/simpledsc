@@ -1,246 +1,244 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { productApi } from '../../api/endpoints.js';
-import { Button } from '../../components/ui/Button.jsx';
+import axios from 'axios';
+import { UsbTokenVisual } from '../../components/ui/UsbTokenVisual.jsx';
 import {
-  ShieldCheck,
   CheckCircle2,
   FileText,
-  Clock,
-  Usb,
+  ShieldCheck,
+  Zap,
   ArrowRight,
-  ArrowLeft,
+  PhoneCall,
   Lock,
-  Award,
-  HelpCircle
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export const ProductDetail = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [selectedYears, setSelectedYears] = useState(2);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchDetails = async () => {
-      try {
-        const res = await productApi.getProductBySlug(slug);
-        if (res?.data) {
-          setProduct(res.data);
-        }
-      } catch (err) {
-        console.error('Failed to load product details:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchDetails();
+    fetchProductDetails();
   }, [slug]);
+
+  const fetchProductDetails = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await axios.get(`${API_BASE}/products/${slug}`);
+      if (res.data?.success && res.data?.data) {
+        setProduct(res.data.data);
+      } else {
+        setProduct(res.data);
+      }
+    } catch (err) {
+      console.error('Error fetching product detail:', err);
+      setError('Product not found or unable to load.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getTokenBrand = (productSlug, category) => {
+    const s = (productSlug || '').toLowerCase();
+    const c = (category || '').toLowerCase();
+    if (s.includes('dgft') || c.includes('dgft')) return 'vsign';
+    if (s.includes('tender') || c.includes('tender')) return 'capsigns';
+    if (s.includes('mca') || c.includes('mca')) return 'ncode';
+    if (s.includes('signer') || c.includes('signer')) return 'emudhra';
+    return 'epass2003';
+  };
+
+  const handleBuyNow = () => {
+    navigate('/checkout', { state: { product } });
+  };
 
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-[#FAF9FF] flex flex-col items-center justify-center space-y-3">
+        <Loader2 className="w-8 h-8 text-[#5B2EFF] animate-spin" />
+        <p className="text-sm font-medium text-[#70708A]">Loading product details...</p>
       </div>
     );
   }
 
-  if (!product) {
+  if (error || !product) {
     return (
-      <div className="max-w-xl mx-auto py-20 px-4 text-center">
-        <h2 className="text-xl font-bold text-slate-800">Product Not Found</h2>
-        <p className="text-xs text-slate-500 mt-2 mb-6">The certificate configuration you requested does not exist or has moved.</p>
-        <Link to="/products">
-          <Button variant="primary" size="sm">Back to Products</Button>
-        </Link>
+      <div className="min-h-screen bg-[#FAF9FF] flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-[#E5E2F0] text-center space-y-4 shadow-card">
+          <AlertCircle className="w-10 h-10 text-rose-500 mx-auto" />
+          <h2 className="text-xl font-bold text-[#11112F]">Product Not Found</h2>
+          <p className="text-xs text-[#70708A]">{error || 'The requested DSC product is unavailable.'}</p>
+          <Link
+            to="/products"
+            className="inline-block px-6 py-2.5 rounded-full bg-[#5B2EFF] text-white text-xs font-semibold hover:bg-[#4A22DE]"
+          >
+            Back to Products
+          </Link>
+        </div>
       </div>
     );
   }
 
-  const selectedOption =
-    product.validityOptions?.find((v) => v.years === selectedYears) ||
-    product.validityOptions?.[0] || { price: product.basePrice, discountPrice: product.basePrice };
-
-  const gstAmount = Math.round(selectedOption.discountPrice * 0.18);
-  const totalAmount = selectedOption.discountPrice + gstAmount;
+  const tokenType = getTokenBrand(product.slug, product.category);
 
   return (
-    <div className="py-10 sm:py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      {/* Back button */}
-      <div className="mb-6">
-        <button
-          onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-indigo-600 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to Catalog</span>
-        </button>
-      </div>
+    <div className="min-h-screen bg-[#FAF9FF] text-[#16162D] py-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-xs font-semibold text-[#70708A]">
+          <Link to="/" className="hover:text-[#5B2EFF]">Home</Link>
+          <span>/</span>
+          <Link to="/products" className="hover:text-[#5B2EFF]">Products</Link>
+          <span>/</span>
+          <span className="text-[#11112F]">{product.name}</span>
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-        {/* Left Specification Column */}
-        <div className="lg:col-span-8 space-y-8">
-          <div>
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              <span className="px-3 py-1 rounded-md bg-indigo-50 text-indigo-700 text-xs font-bold border border-indigo-100">
-                {product.category?.replace(/_/g, ' ')}
+        {/* Product Overview Top Card */}
+        <div className="bg-white rounded-3xl p-8 lg:p-12 border border-[#E5E2F0] shadow-card grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+          {/* Left Visual */}
+          <div className="lg:col-span-5 flex flex-col items-center justify-center p-10 bg-[#FAF9FF] rounded-2xl border border-slate-100 relative">
+            {product.isPopular && (
+              <span className="absolute top-4 right-4 text-xs font-bold px-3 py-1 rounded-full bg-[#5B2EFF] text-white">
+                Most Popular
               </span>
-              <span className="px-3 py-1 rounded-md bg-slate-100 text-slate-700 text-xs font-semibold">
-                {product.hasEncryption ? 'Signing + Encryption' : 'Signing Only'}
+            )}
+            <UsbTokenVisual type={tokenType} size="hero" />
+            <div className="mt-8 flex items-center gap-4 text-xs font-bold text-[#70708A]">
+              <span className="flex items-center gap-1">
+                <Lock className="w-3.5 h-3.5 text-[#5B2EFF]" /> FIPS 140-2 Level 2
               </span>
-            </div>
-            <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight font-sans">
-              {product.name}
-            </h1>
-            <p className="text-sm sm:text-base text-slate-600 mt-3 leading-relaxed">
-              {product.fullDescription || product.shortDescription}
-            </p>
-          </div>
-
-          {/* Key Specifications Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 p-5 rounded-2xl bg-white border border-slate-200 shadow-sm text-xs">
-            <div>
-              <span className="text-slate-400 block font-medium">Standard Compliance</span>
-              <span className="font-bold text-slate-800 text-sm mt-0.5 block">CCA India & IT Act</span>
-            </div>
-            <div>
-              <span className="text-slate-400 block font-medium">Key Length</span>
-              <span className="font-bold text-slate-800 text-sm mt-0.5 block">2048-bit RSA</span>
-            </div>
-            <div>
-              <span className="text-slate-400 block font-medium">Delivery Mode</span>
-              <span className="font-bold text-indigo-600 text-sm mt-0.5 block">FIPS USB Crypto Token</span>
+              <span>•</span>
+              <span>2048-Bit RSA</span>
             </div>
           </div>
 
-          {/* Features Checklist */}
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-card space-y-4">
-            <h3 className="text-base font-bold text-slate-900">Certificate Capabilities & Features</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-700">
-              {(product.features || []).map((feat, i) => (
-                <div key={i} className="flex items-start gap-2.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <span>{feat}</span>
-                </div>
-              ))}
+          {/* Right Product Details & Buy Actions */}
+          <div className="lg:col-span-7 space-y-6">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-[#5B2EFF] bg-[#F3EFFF] px-3 py-1 rounded-full border border-purple-200">
+                {product.category}
+              </span>
+              <h1 className="text-3xl sm:text-4xl font-black text-[#11112F] tracking-tight mt-3">
+                {product.name}
+              </h1>
+              <p className="text-sm text-[#70708A] mt-2 leading-relaxed">
+                {product.shortDescription || product.description}
+              </p>
             </div>
-          </div>
 
-          {/* Use Cases */}
-          {product.useCases && product.useCases.length > 0 && (
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-card space-y-4">
-              <h3 className="text-base font-bold text-slate-900">Supported Portals & Workflows</h3>
-              <div className="flex flex-wrap gap-2">
-                {product.useCases.map((uc, i) => (
-                  <span
-                    key={i}
-                    className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-800"
-                  >
-                    ✓ {uc}
+            {/* Price & Validity */}
+            <div className="p-5 rounded-2xl bg-[#FAF9FF] border border-[#E5E2F0] flex items-center justify-between">
+              <div>
+                <p className="text-xs text-[#70708A] font-semibold">Total Price (incl. token & support)</p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-3xl font-black text-[#11112F]">
+                    ₹{(product.price || product.basePrice || 1499).toLocaleString('en-IN')}
                   </span>
-                ))}
+                  <span className="text-xs font-bold text-[#70708A]">
+                    / {product.validity || '1 Year Validity'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="text-right">
+                <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+                  <Zap className="w-3.5 h-3.5" /> Instant eKYC
+                </span>
               </div>
             </div>
-          )}
 
-          {/* Documents Required */}
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-card space-y-4">
-            <div className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-indigo-600" />
-              <h3 className="text-base font-bold text-slate-900">Documents Required for Verification</h3>
-            </div>
-            <p className="text-xs text-slate-500">
-              During the paperless application flow, you will be prompted to upload digital copies of:
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-semibold text-slate-700">
-              {(product.documentsRequired || []).map((doc, i) => (
-                <div key={i} className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-indigo-600 shrink-0" />
-                  <span>{doc.replace(/_/g, ' ')}</span>
-                </div>
-              ))}
+            {/* Buttons */}
+            <div className="flex flex-wrap items-center gap-4 pt-2">
+              <button
+                onClick={handleBuyNow}
+                className="px-8 py-3.5 rounded-full bg-[#5B2EFF] text-white font-semibold text-sm hover:bg-[#4A22DE] transition-all duration-200 shadow-md hover:shadow-lg inline-flex items-center gap-2 group active:scale-95"
+              >
+                <span>Buy Now</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </button>
+
+              <Link
+                to="/contact"
+                className="px-7 py-3.5 rounded-full border border-[#E5E2F0] bg-white text-[#16162D] font-semibold text-sm hover:bg-slate-50 transition-all duration-200 shadow-sm inline-flex items-center gap-2 active:scale-95"
+              >
+                <PhoneCall className="w-4 h-4 text-[#5B2EFF]" />
+                <span>Talk to Expert</span>
+              </Link>
             </div>
           </div>
         </div>
 
-        {/* Right Sticky Pricing & Application Card */}
-        <div className="lg:col-span-4">
-          <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-elevated sticky top-24 space-y-6">
-            <div>
-              <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">
-                Select Your Plan
-              </span>
-              <h3 className="text-lg font-bold text-slate-900 mt-1">Validity Duration</h3>
+        {/* Detailed Tabs: Features, Suitable For, Required Documents */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Key Features */}
+          <div className="bg-white rounded-3xl p-7 border border-[#E5E2F0] shadow-card space-y-4">
+            <div className="flex items-center gap-2.5 text-[#11112F] font-bold text-lg">
+              <ShieldCheck className="w-5 h-5 text-[#5B2EFF]" />
+              <h3>Key Features</h3>
             </div>
-
-            {/* Validity Radio Buttons */}
-            <div className="space-y-2">
-              {(product.validityOptions || []).map((opt) => (
-                <button
-                  key={opt.years}
-                  type="button"
-                  onClick={() => setSelectedYears(opt.years)}
-                  className={`w-full p-3.5 rounded-2xl border text-left flex items-center justify-between transition-all ${
-                    selectedYears === opt.years
-                      ? 'border-indigo-600 bg-indigo-50/50 ring-2 ring-indigo-100 shadow-sm'
-                      : 'border-slate-200 hover:border-slate-300'
-                  }`}
-                >
-                  <div>
-                    <p className="text-xs font-bold text-slate-900">
-                      {opt.years} {opt.years === 1 ? 'Year' : 'Years'} Validity
-                    </p>
-                    <p className="text-[11px] text-slate-400">Includes FIPS Token</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-extrabold text-slate-900">₹{opt.discountPrice}</p>
-                    {opt.price > opt.discountPrice && (
-                      <p className="text-[11px] text-slate-400 line-through">₹{opt.price}</p>
-                    )}
-                  </div>
-                </button>
+            <ul className="space-y-3">
+              {(product.features && product.features.length > 0 ? product.features : [
+                'Aadhaar eKYC Paperless Verification',
+                'PAN Card instant verification',
+                '2048-bit RSA Encryption',
+                'IT Act 2000 compliant',
+                'Free remote installation guidance'
+              ]).map((feat, idx) => (
+                <li key={idx} className="flex items-start gap-2.5 text-xs text-[#16162D]">
+                  <CheckCircle2 className="w-4 h-4 text-[#5B2EFF] shrink-0 mt-0.5" />
+                  <span>{feat}</span>
+                </li>
               ))}
-            </div>
+            </ul>
+          </div>
 
-            {/* Price Breakdown */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2 text-xs">
-              <div className="flex justify-between text-slate-600">
-                <span>Certificate Base Fee:</span>
-                <span>₹{selectedOption.discountPrice}</span>
-              </div>
-              <div className="flex justify-between text-slate-600">
-                <span>GST (18%):</span>
-                <span>₹{gstAmount}</span>
-              </div>
-              <div className="flex justify-between text-slate-600">
-                <span>FIPS 140-2 Token & Courier:</span>
-                <span className="text-emerald-600 font-semibold">FREE (₹0)</span>
-              </div>
-              <div className="pt-2 border-t border-slate-200 flex justify-between font-bold text-sm text-slate-900">
-                <span>Total Payable:</span>
-                <span className="text-indigo-600 font-sans">₹{totalAmount}</span>
-              </div>
+          {/* Suitable For */}
+          <div className="bg-white rounded-3xl p-7 border border-[#E5E2F0] shadow-card space-y-4">
+            <div className="flex items-center gap-2.5 text-[#11112F] font-bold text-lg">
+              <Zap className="w-5 h-5 text-[#5B2EFF]" />
+              <h3>Who Should Buy</h3>
             </div>
+            <ul className="space-y-3">
+              {(product.suitableFor && product.suitableFor.length > 0 ? product.suitableFor : [
+                'Individuals filing Income Tax Returns',
+                'Directors registering DIN on MCA V3',
+                'Chartered Accountants and Tax Professionals',
+                'Entrepreneurs forming new companies'
+              ]).map((item, idx) => (
+                <li key={idx} className="flex items-start gap-2.5 text-xs text-[#16162D]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#5B2EFF] shrink-0 mt-1.5" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
 
-            {/* Action Buttons */}
-            <div className="space-y-3">
-              <Link
-                to={`/dashboard/buy?product=${product._id}&validity=${selectedYears}`}
-                className="block"
-              >
-                <Button variant="primary" size="lg" className="w-full">
-                  <span>Proceed to Apply</span>
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </Link>
+          {/* Required Documents */}
+          <div className="bg-white rounded-3xl p-7 border border-[#E5E2F0] shadow-card space-y-4">
+            <div className="flex items-center gap-2.5 text-[#11112F] font-bold text-lg">
+              <FileText className="w-5 h-5 text-[#5B2EFF]" />
+              <h3>Required Documents</h3>
             </div>
-
-            {/* Guarantee Note */}
-            <div className="pt-2 flex items-center justify-center gap-2 text-[11px] text-slate-400">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>100% Money-back Guarantee if rejected</span>
-            </div>
+            <ul className="space-y-3">
+              {(product.requiredDocuments && product.requiredDocuments.length > 0 ? product.requiredDocuments : [
+                'Applicant PAN Card (Scanned copy)',
+                'Aadhaar Card (Mobile OTP verification)',
+                'Passport Size Photograph',
+                'Active Mobile Number & Email ID'
+              ]).map((doc, idx) => (
+                <li key={idx} className="flex items-start gap-2.5 text-xs text-[#16162D]">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                  <span>{doc}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </div>

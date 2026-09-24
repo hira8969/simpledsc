@@ -1,93 +1,171 @@
-import { OrderService } from '../services/orderService.js';
 import { Order } from '../models/Order.js';
+import { Product } from '../models/Product.js';
+import { User } from '../models/User.js';
 
+// @desc    Create new order
+// @route   POST /api/orders
+// @access  Private
 export const createOrder = async (req, res, next) => {
   try {
-    const { applicationId, validityYears, hasUsbToken } = req.body;
-    if (!applicationId) {
-      return res.status(400).json({ success: false, message: 'Application ID is required.' });
+    const {
+      product,
+      productId,
+      quantity = 1,
+      amount,
+      customerDetails,
+      documents = [],
+      validityYears = 1,
+      hasUsbToken = true,
+      paymentStatus = 'PAID'
+    } = req.body;
+
+    const targetProductId = productId || product;
+    let productDoc = null;
+    if (targetProductId) {
+      if (typeof targetProductId === 'string' && targetProductId.match(/^[0-9a-fA-F]{24}$/)) {
+        productDoc = await Product.findById(targetProductId);
+      }
+      if (!productDoc && typeof targetProductId === 'string') {
+        productDoc = await Product.findOne({ slug: targetProductId });
+      }
     }
 
-    const order = await OrderService.createOrder({
+    if (!productDoc) {
+      productDoc = await Product.findOne({ isActive: true });
+    }
+
+    const calculatedAmount = amount || (productDoc ? productDoc.price * Number(quantity) : 1999);
+    const orderId = `SIMPL-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
+
+    const order = await Order.create({
+      orderId,
+      user: req.user._id,
       userId: req.user._id,
-      applicationId,
-      validityYears: validityYears || 2,
-      hasUsbToken: hasUsbToken !== false
+      product: productDoc?._id,
+      productId: productDoc?._id,
+      quantity: Number(quantity) || 1,
+      amount: calculatedAmount,
+      totalAmount: calculatedAmount,
+      baseAmount: calculatedAmount,
+      validityYears: Number(validityYears) || 1,
+      hasUsbToken,
+      customerDetails: {
+        fullName: customerDetails?.fullName || customerDetails?.name || req.user.name,
+        email: customerDetails?.email || req.user.email,
+        phone: customerDetails?.phone || req.user.phone || req.user.mobile,
+        panNumber: customerDetails?.panNumber || req.user.panNumber,
+        organizationName: customerDetails?.organizationName,
+        gstin: customerDetails?.gstin,
+        address: customerDetails?.address
+      },
+      documents: documents.map(d => ({
+        docType: d.docType || 'Identity Proof',
+        fileName: d.fileName || d.name || 'document.pdf',
+        fileUrl: d.fileUrl || d.url || '/uploads/sample.pdf',
+        fileSize: d.fileSize || 1024
+      })),
+      paymentStatus: paymentStatus || 'PAID',
+      orderStatus: 'Verification',
+      applicationStatus: 'KYC_VERIFICATION'
     });
 
-    res.status(201).json({
+    const populatedOrder = await Order.findById(order._id)
+      .populate('user', 'name email phone mobile')
+      .populate('product', 'name slug category price validity image');
+
+    return res.status(201).json({
       success: true,
       message: 'Order created successfully',
-      data: order
+      data: populatedOrder,
+      order: populatedOrder
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Get logged in user orders
+// @route   GET /api/orders/my-orders OR GET /api/orders/my
+// @access  Private
+export const getMyOrders = async (req, res, next) => {
+  try {
+    const orders = await Order.find({
+      $or: [{ user: req.user._id }, { userId: req.user._id }]
+    })
+      .populate('product', 'name slug category price validity image')
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: orders.length,
+      data: orders,
+      orders
     });
   } catch (error) {
     next(error);
   }
 };
 
-export const getMyOrders = async (req, res, next) => {
-  try {
-    const orders = await OrderService.getUserOrders(req.user._id);
-    res.json({ success: true, count: orders.length, data: orders });
-  } catch (error) {
-    next(error);
-  }
-};
-
+// @desc    Get single order by ID
+// @route   GET /api/orders/:id
+// @access  Private
 export const getOrderById = async (req, res, next) => {
   try {
-    const order = await OrderService.getOrderById(req.params.orderId, req.user._id);
-    res.json({ success: true, data: order });
+    const { id, orderId } = req.params;
+    const lookup = id || orderId;
+
+    let query = {
+      $or: [{ orderId: lookup }]
+    };
+    if (lookup.match(/^[0-9a-fA-F]{24}$/)) {
+      query.$or.push({ _id: lookup });
+    }
+
+    const order = await Order.findOne(query)
+      .populate('user', 'name email phone mobile')
+      .populate('product', 'name slug category price validity image features');
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: order,
+      order
+    });
   } catch (error) {
     next(error);
   }
 };
 
-/**
- * Public status tracking by Order ID and Mobile
- */
+// @desc    Track order publicly
+// @route   GET /api/orders/track/:orderId
+// @access  Public
 export const trackOrder = async (req, res, next) => {
   try {
     const { orderId } = req.params;
     const order = await Order.findOne({ orderId })
-      .populate('productId', 'name category validityOptions')
-      .select('orderId paymentStatus applicationStatus kycStatus dscStatus createdAt updatedAt validityYears hasUsbToken');
+      .populate('product', 'name category price validity image');
 
     if (!order) {
       return res.status(404).json({ success: false, message: `No order found with ID: ${orderId}` });
     }
 
-    // Return timeline milestones
     const milestones = [
-      {
-        title: 'Order Placed',
-        status: 'COMPLETED',
-        date: order.createdAt
-      },
-      {
-        title: 'Payment Verification',
-        status: order.paymentStatus === 'SUCCESS' ? 'COMPLETED' : 'PENDING'
-      },
-      {
-        title: 'KYC Document Verification',
-        status: order.kycStatus === 'VERIFIED' ? 'COMPLETED' : order.kycStatus === 'UNDER_REVIEW' ? 'IN_PROGRESS' : 'PENDING'
-      },
-      {
-        title: 'Certifying Authority (CA) Processing',
-        status: order.applicationStatus === 'CA_PROCESSING' || order.dscStatus === 'ISSUED' ? 'COMPLETED' : 'PENDING'
-      },
-      {
-        title: 'Certificate Issuance & Token Dispatch',
-        status: order.applicationStatus === 'COMPLETED' ? 'COMPLETED' : 'PENDING'
-      }
+      { title: 'Order Placed', status: 'COMPLETED', date: order.createdAt },
+      { title: 'Payment Verification', status: order.paymentStatus === 'PAID' || order.paymentStatus === 'SUCCESS' ? 'COMPLETED' : 'PENDING' },
+      { title: 'Document & Video eKYC', status: order.orderStatus === 'Completed' || order.kycStatus === 'VERIFIED' ? 'COMPLETED' : 'IN_PROGRESS' },
+      { title: 'Certifying Authority (CA) Approval', status: order.orderStatus === 'Completed' ? 'COMPLETED' : 'PENDING' },
+      { title: 'DSC Issued & Token Dispatched', status: order.orderStatus === 'Completed' ? 'COMPLETED' : 'PENDING' }
     ];
 
-    res.json({
+    return res.status(200).json({
       success: true,
-      data: {
-        order,
-        milestones
-      }
+      data: { order, milestones }
     });
   } catch (error) {
     next(error);

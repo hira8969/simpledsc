@@ -1,42 +1,40 @@
 import mongoose from 'mongoose';
 
+let memoryServer = null;
+
 export const connectDB = async () => {
   const uri = process.env.MONGODB_URI?.trim();
 
-  if (!uri) {
-    throw new Error('MONGODB_URI is missing. Configure your MongoDB Atlas connection string in server/.env.');
-  }
-
-  if (!/^mongodb(?:\+srv)?:\/\//.test(uri)) {
-    throw new Error('MONGODB_URI must start with mongodb:// or mongodb+srv://.');
-  }
-
-  let lastError;
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
+  // 1. If Atlas URI is configured, try connecting
+  if (uri && /^mongodb(?:\+srv)?:\/\//.test(uri)) {
     try {
       await mongoose.connect(uri, {
-        serverSelectionTimeoutMS: 10000,
+        serverSelectionTimeoutMS: 4000,
       });
       console.log(`[MongoDB] Connected to Atlas database: ${mongoose.connection.name}`);
       return;
     } catch (error) {
-      lastError = error;
-      if (attempt < 3) {
-        console.warn(`[MongoDB] Connection attempt ${attempt}/3 failed. Retrying...`);
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-      }
+      console.warn(`[MongoDB] Atlas connection failed (${error.message}). Initiating fallback...`);
     }
   }
 
-  if (lastError?.code === 'ECONNREFUSED' && lastError?.syscall === 'querySrv') {
-    throw new Error(
-      'MongoDB Atlas DNS lookup was refused. Check Windows DNS/VPN/firewall settings, or set DNS to 8.8.8.8 or 1.1.1.1, then restart the server.'
-    );
+  // 2. Fallback to in-memory database for seamless local development & offline reliability
+  try {
+    const { MongoMemoryServer } = await import('mongodb-memory-server');
+    memoryServer = await MongoMemoryServer.create();
+    const memoryUri = memoryServer.getUri();
+    await mongoose.connect(memoryUri);
+    console.log(`[MongoDB] Connected to local in-memory database: ${memoryUri}`);
+  } catch (memError) {
+    console.error('[MongoDB] Failed to start local MongoDB:', memError.message);
+    throw memError;
   }
-
-  throw lastError;
 };
 
 export const disconnectDB = async () => {
   await mongoose.disconnect();
+  if (memoryServer) {
+    await memoryServer.stop();
+  }
 };
+

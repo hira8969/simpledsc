@@ -5,8 +5,8 @@ import { fileURLToPath } from 'url';
 import { connectDB } from '../config/db.js';
 import { User } from '../models/User.js';
 import { Product } from '../models/Product.js';
+import { FAQ } from '../models/FAQ.js';
 import { Settings } from '../models/Settings.js';
-import { PRODUCT_CATEGORIES, DOCUMENT_TYPES } from '../config/constants.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,27 +17,54 @@ export const seedDatabase = async () => {
     console.log('[Seed] Starting database seeding...');
 
     // 1. Create Default Admin User
-    const adminExists = await User.findOne({ email: 'admin@simpldsc.com' });
-    if (!adminExists) {
-      await User.create({
-        name: 'SimplDSC System Admin',
-        email: 'admin@simpldsc.com',
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@simpldsc.in';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'AdminPassword@123';
+    
+    let admin = await User.findOne({ email: adminEmail });
+    if (!admin) {
+      admin = new User({
+        name: 'SimplDSC Admin',
+        email: adminEmail,
+        phone: '9876543210',
         mobile: '9876543210',
-        role: 'ADMIN',
-        status: 'ACTIVE'
+        password: adminPassword,
+        role: 'admin',
+        status: 'ACTIVE',
+        isVerified: true
       });
-      console.log('[Seed] Default Admin created: admin@simpldsc.com (Mobile: 9876543210)');
+      await admin.save();
+      console.log(`[Seed] Default Admin created: ${adminEmail} (Password: ${adminPassword})`);
     }
 
-    // 2. Create Demo Customer
-    const customerExists = await User.findOne({ mobile: '9898989898' });
-    if (!customerExists) {
-      await User.create({
+    // Also support backup admin email if different
+    const backupAdminEmail = 'admin@simpldsc.com';
+    let backupAdmin = await User.findOne({ email: backupAdminEmail });
+    if (!backupAdmin) {
+      backupAdmin = new User({
+        name: 'SimplDSC System Admin',
+        email: backupAdminEmail,
+        phone: '9876543210',
+        mobile: '9876543210',
+        password: adminPassword,
+        role: 'admin',
+        status: 'ACTIVE',
+        isVerified: true
+      });
+      await backupAdmin.save();
+    }
+
+    // 2. Demo Customer
+    let customer = await User.findOne({ email: 'rahul.sharma@example.com' });
+    if (!customer) {
+      customer = new User({
         name: 'Rahul Sharma',
         email: 'rahul.sharma@example.com',
+        phone: '9898989898',
         mobile: '9898989898',
-        role: 'CUSTOMER',
+        password: 'Password@123',
+        role: 'user',
         status: 'ACTIVE',
+        isVerified: true,
         panNumber: 'ABCPS1234F',
         companyName: 'Sharma Global Advisory LLP',
         gstin: '29ABCPS1234F1Z5',
@@ -49,185 +76,354 @@ export const seedDatabase = async () => {
           country: 'India'
         }
       });
-      console.log('[Seed] Demo Customer created: Rahul Sharma (Mobile: 9898989898)');
+      await customer.save();
+      console.log('[Seed] Demo Customer created: rahul.sharma@example.com');
     }
 
     // 3. Products
-    const productsCount = await Product.countDocuments();
-    if (productsCount === 0) {
-      const products = [
-        {
-          name: 'Class 3 DSC - Individual (Signing Only)',
-          slug: 'class-3-individual-signing',
-          category: PRODUCT_CATEGORIES.CLASS_3_INDIVIDUAL,
-          shortDescription: 'Standard Class 3 digital signature for individual tax returns, GST, and MCA filings.',
-          fullDescription: 'The Class 3 Individual Signing Digital Signature is the most widely used certificate across India. Ideal for Directors, Tax Consultants, Business Owners, and Individuals requiring e-verification on the Income Tax Portal, GST Portal, MCA V3, and EPFO.',
-          hasEncryption: false,
-          basePrice: 1499,
-          validityOptions: [
-            { years: 1, price: 1499, discountPrice: 1199 },
-            { years: 2, price: 2199, discountPrice: 1799 },
-            { years: 3, price: 2999, discountPrice: 2499 }
-          ],
-          features: [
-            '2048-bit RSA High-grade Encryption',
-            'CCA India & IT Act 2000 Compliant',
-            'Income Tax & GST e-Filing Supported',
-            'MCA21 & MCA V3 Portal Valid',
-            'FIPS 140-2 Level 2 Crypto Token Included'
-          ],
-          useCases: ['Income Tax Returns (ITR)', 'GST Invoicing & Returns', 'MCA V3 Director Signatures', 'EPFO & TRACES'],
-          documentsRequired: [DOCUMENT_TYPES.PAN_CARD, DOCUMENT_TYPES.AADHAAR_FRONT, DOCUMENT_TYPES.PHOTO],
-          deliveryMethod: 'USB_TOKEN_FIPS',
-          popularTag: true,
-          status: 'ACTIVE'
-        },
-        {
-          name: 'Class 3 DSC - Combo (Sign + Encrypt)',
-          slug: 'class-3-combo-sign-encrypt',
-          category: PRODUCT_CATEGORIES.CLASS_3_INDIVIDUAL,
-          shortDescription: 'Dual certificate (Signing + Encryption) essential for e-Tendering, GeM, and secure bidding.',
-          fullDescription: 'Provides both cryptographic Signing and Encryption certificates on a single hardware crypto token. The encryption certificate securely seals your confidential bid documents, ensuring zero tampering before government tender opening.',
-          hasEncryption: true,
-          basePrice: 2499,
-          validityOptions: [
-            { years: 1, price: 2499, discountPrice: 2099 },
-            { years: 2, price: 3499, discountPrice: 2899 },
-            { years: 3, price: 4499, discountPrice: 3799 }
-          ],
-          features: [
-            'Dual Certificate: Signer + Encryptor in 1 Token',
-            'CPPP (Central Public Procurement) Ready',
-            'Mandatory for GeM (Government e-Marketplace)',
-            'State e-Procurement Portals Compatible',
-            'Free USB Hardware Crypto Token Included'
-          ],
-          useCases: ['CPPP E-Procurement', 'GeM Portal Seller/Buyer', 'Defence & Railway Tenders', 'State E-Tenders'],
-          documentsRequired: [DOCUMENT_TYPES.PAN_CARD, DOCUMENT_TYPES.AADHAAR_FRONT, DOCUMENT_TYPES.PHOTO],
-          deliveryMethod: 'USB_TOKEN_FIPS',
-          popularTag: true,
-          status: 'ACTIVE'
-        },
-        {
-          name: 'Class 3 DSC - Organization',
-          slug: 'class-3-organization',
-          category: PRODUCT_CATEGORIES.CLASS_3_ORGANIZATION,
-          shortDescription: 'Issued in company name with authorized signatory for corporate filings and contracts.',
-          fullDescription: 'Issued to employees and authorized signatories representing a Company, LLP, Partnership, or Trust. Authenticates corporate identity for high-value tenders, international banking, MCA filings, and commercial vendor agreements.',
-          hasEncryption: true,
-          basePrice: 3499,
-          validityOptions: [
-            { years: 1, price: 3499, discountPrice: 2999 },
-            { years: 2, price: 4999, discountPrice: 4199 },
-            { years: 3, price: 6499, discountPrice: 5399 }
-          ],
-          features: [
-            'Includes Company Name in Certificate Subject',
-            'Signing + Encryption Combo Included',
-            'Authorized Signatory Authentication',
-            'Legal Binding under Section 3 of Indian IT Act',
-            'Priority Fast-track KYC Verification'
-          ],
-          useCases: ['High-Value Enterprise Bids', 'MCA Corporate Filings', 'Customs ICEGATE Clearance', 'Vendor Vendor Agreements'],
-          documentsRequired: [
-            DOCUMENT_TYPES.PAN_CARD,
-            DOCUMENT_TYPES.AADHAAR_FRONT,
-            DOCUMENT_TYPES.PHOTO,
-            DOCUMENT_TYPES.GST_CERTIFICATE,
-            DOCUMENT_TYPES.BOARD_RESOLUTION
-          ],
-          deliveryMethod: 'USB_TOKEN_FIPS',
-          popularTag: false,
-          status: 'ACTIVE'
-        },
-        {
-          name: 'DGFT Digital Signature Certificate',
-          slug: 'dgft-dsc',
-          category: PRODUCT_CATEGORIES.DGFT,
-          shortDescription: 'Mandatory DSC for Importers & Exporters on the Directorate General of Foreign Trade portal.',
-          fullDescription: 'Specialized digital signature certificate embedded with IEC (Import Export Code). Tailored specifically for Indian import-export enterprises filing foreign trade applications, license applications, and clearance under foreign trade policies.',
-          hasEncryption: false,
-          basePrice: 2799,
-          validityOptions: [
-            { years: 1, price: 2799, discountPrice: 2299 },
-            { years: 2, price: 3999, discountPrice: 3299 },
-            { years: 3, price: 5199, discountPrice: 4299 }
-          ],
-          features: [
-            'IEC (Import Export Code) Embedded Certificate',
-            'Approved for DGFT Online Portal Applications',
-            'Duty Drawback & License Incentive Processing',
-            'Instant Recognition on ICEGATE',
-            'Plug & Play FIPS Token Included'
-          ],
-          useCases: ['DGFT Import/Export Filings', 'Advance Authorization Applications', 'Duty Remission Schemes', 'Customs Bill of Entry Signing'],
-          documentsRequired: [
-            DOCUMENT_TYPES.PAN_CARD,
-            DOCUMENT_TYPES.AADHAAR_FRONT,
-            DOCUMENT_TYPES.PHOTO,
-            DOCUMENT_TYPES.GST_CERTIFICATE
-          ],
-          deliveryMethod: 'USB_TOKEN_FIPS',
-          popularTag: false,
-          status: 'ACTIVE'
-        },
-        {
-          name: 'Document Signer Certificate',
-          slug: 'document-signer-dsc',
-          category: PRODUCT_CATEGORIES.DOCUMENT_SIGNER,
-          shortDescription: 'Automated bulk PDF signing for banks, fintechs, ERPs, and automated e-Invoicing systems.',
-          fullDescription: 'Designed for server-side automated bulk signing of invoices, salary slips, bank statements, and client agreements without requiring manual PIN entry for every document. Ideal for ERP integrations (SAP, Oracle, Tally, Zoho).',
-          hasEncryption: false,
-          basePrice: 5999,
-          validityOptions: [
-            { years: 1, price: 5999, discountPrice: 5299 },
-            { years: 2, price: 8999, discountPrice: 7799 },
-            { years: 3, price: 11999, discountPrice: 10499 }
-          ],
-          features: [
-            'Automated High-volume Bulk Document Signing',
-            'Compatible with Java, .NET, Python, Node.js PDF Signers',
-            'HSM / Crypto Token Supported',
-            'GST e-Invoice Bulk Signing Compliant',
-            'Enterprise Technical Support Included'
-          ],
-          useCases: ['Automated GST Invoices', 'Bank Statements & Account Aggregators', 'HR Form 16 Bulk Generation', 'ERP Order Confirmations'],
-          documentsRequired: [
-            DOCUMENT_TYPES.PAN_CARD,
-            DOCUMENT_TYPES.AADHAAR_FRONT,
-            DOCUMENT_TYPES.PHOTO,
-            DOCUMENT_TYPES.GST_CERTIFICATE,
-            DOCUMENT_TYPES.BOARD_RESOLUTION
-          ],
-          deliveryMethod: 'USB_TOKEN_FIPS',
-          popularTag: false,
-          status: 'ACTIVE'
-        }
-      ];
+    await Product.deleteMany({});
+    const products = [
+      {
+        name: 'Class 2 DSC',
+        slug: 'class-2-dsc',
+        category: 'Class 2 DSC',
+        shortDescription: 'For individuals and small businesses.',
+        description: 'Ideal for individuals and small business owners needing digital authentication for basic tax filings, invoices, and organizational portals.',
+        fullDescription: 'Class 2 Digital Signature Certificates offer secure personal identification for individual taxpayers, professionals, and small business owners. Convenient and fully compliant with Indian IT standards.',
+        price: 1499,
+        basePrice: 1499,
+        validity: '1 Year',
+        validityOptions: [
+          { years: 1, price: 1499, discountPrice: 1299 },
+          { years: 2, price: 2199, discountPrice: 1899 },
+          { years: 3, price: 2899, discountPrice: 2499 }
+        ],
+        image: 'epass2003',
+        features: [
+          'Aadhaar eKYC Verification',
+          'PAN Card Verification',
+          'Standard Email & Chat Support',
+          'Free Reissuance Guarantee*',
+          '2048-bit Cryptographic Security'
+        ],
+        suitableFor: [
+          'Individual Taxpayers',
+          'Small Business Proprietors',
+          'Basic Document Authentication',
+          'Internal Corporate Signings'
+        ],
+        requiredDocuments: [
+          'PAN Card (Scanned Copy)',
+          'Aadhaar Card (for OTP verification)',
+          'Passport Size Photograph'
+        ],
+        isPopular: false,
+        isActive: true,
+        hasEncryption: false,
+        deliveryMethod: 'USB_TOKEN_FIPS'
+      },
+      {
+        name: 'Class 3 DSC',
+        slug: 'class-3-dsc',
+        category: 'Class 3 DSC',
+        shortDescription: 'For directors, companies and high security usage.',
+        description: 'The highest security level DSC in India. Mandatory for MCA V3 director filings, ROC compliances, EPFO, Income Tax, and high-value transactions.',
+        fullDescription: 'Class 3 Digital Signature Certificates provide the highest level of assurance and cryptographic protection under the Indian IT Act. Required for MCA portal filings, company directors (DIN), GST returns, and corporate transactions.',
+        price: 1999,
+        basePrice: 1999,
+        validity: '1 Year',
+        validityOptions: [
+          { years: 1, price: 1999, discountPrice: 1699 },
+          { years: 2, price: 2799, discountPrice: 2399 },
+          { years: 3, price: 3499, discountPrice: 2999 }
+        ],
+        image: 'epass2003',
+        features: [
+          'Aadhaar eKYC & Paperless Verification',
+          'PAN Verification within Minutes',
+          '30-Second Express Video Verification',
+          'Priority VIP Expert Support',
+          'Free Reissuance Guarantee*',
+          'FIPS 140-2 Level 2 USB Token Included'
+        ],
+        suitableFor: [
+          'Company Directors & Partners',
+          'Chartered Accountants & CS',
+          'MCA21 & MCA V3 ROC Filings',
+          'Income Tax & GST e-Filing Portals',
+          'EPFO, TRACES & Patent Filings'
+        ],
+        requiredDocuments: [
+          'PAN Card Copy',
+          'Aadhaar Card (Linked with Mobile)',
+          'Passport Size Photograph',
+          'Company Proof (if Organization DSC)'
+        ],
+        isPopular: true,
+        isActive: true,
+        hasEncryption: false,
+        deliveryMethod: 'USB_TOKEN_FIPS'
+      },
+      {
+        name: 'DGFT DSC',
+        slug: 'dgft-dsc',
+        category: 'DGFT',
+        shortDescription: 'For import export (IEC) code.',
+        description: 'Mandatory digital signature embedded with IEC (Import Export Code) for foreign trade transactions on DGFT and ICEGATE portals.',
+        fullDescription: 'Specifically customized for Indian Importers, Exporters, and Custom House Agents. Contains your 10-digit Import Export Code directly embedded in the digital certificate for seamless clearance on DGFT government portals.',
+        price: 1999,
+        basePrice: 1999,
+        validity: '1 Year',
+        validityOptions: [
+          { years: 1, price: 1999, discountPrice: 1799 },
+          { years: 2, price: 2999, discountPrice: 2599 },
+          { years: 3, price: 3999, discountPrice: 3399 }
+        ],
+        image: 'vsign',
+        features: [
+          'IEC Embedded in Certificate Data',
+          '100% Approved for DGFT Portal',
+          'Customs & ICEGATE Bill of Entry Compatible',
+          'Duty Drawback & Scheme Processing',
+          'Plug & Play USB Token Included'
+        ],
+        suitableFor: [
+          'Exporters & Importers in India',
+          'Customs House Agents (CHAs)',
+          'Foreign Trade Policy License Seekers',
+          'SEZ & EOU Units'
+        ],
+        requiredDocuments: [
+          'Applicant PAN & Aadhaar',
+          'IEC Certificate Copy',
+          'GST Certificate',
+          'Passport Size Photograph'
+        ],
+        isPopular: false,
+        isActive: true,
+        hasEncryption: false,
+        deliveryMethod: 'USB_TOKEN_FIPS'
+      },
+      {
+        name: 'eTender DSC',
+        slug: 'etender-dsc',
+        category: 'eTender',
+        shortDescription: 'For government tenders.',
+        description: 'Dual certificate (Signing + Encryption) essential for online e-Procurement, CPPP, GeM bidding, and Indian Railways tenders.',
+        fullDescription: 'The eTender DSC contains both Signing and Encryption cryptographic key pairs. The encryption certificate securely seals bid documents, ensuring confidential tender bidding on Central and State government eProcurement portals.',
+        price: 2499,
+        basePrice: 2499,
+        validity: '1 Year',
+        validityOptions: [
+          { years: 1, price: 2499, discountPrice: 2199 },
+          { years: 2, price: 3499, discountPrice: 2999 },
+          { years: 3, price: 4499, discountPrice: 3899 }
+        ],
+        image: 'capsigns',
+        features: [
+          'Combo Certificate: Signing + Encryption in 1 Token',
+          'CPPP Central Procurement Ready',
+          'GeM Portal (Government e-Marketplace) Compatible',
+          'Indian Railways & Defence Tenders Compatible',
+          'Zero Tampering Cryptographic Bid Protection'
+        ],
+        suitableFor: [
+          'Government Contractors & Bidders',
+          'GeM Registered Sellers & Buyers',
+          'State e-Tender Participants (PWD, Irrigation, etc.)',
+          'PSU Vendors and Suppliers'
+        ],
+        requiredDocuments: [
+          'Applicant PAN & Aadhaar',
+          'Organization GST Certificate',
+          'Board Resolution / Authority Letter',
+          'Applicant Photograph'
+        ],
+        isPopular: false,
+        isActive: true,
+        hasEncryption: true,
+        deliveryMethod: 'USB_TOKEN_FIPS'
+      },
+      {
+        name: 'MCA DSC',
+        slug: 'mca-dsc',
+        category: 'MCA',
+        shortDescription: 'For company filings (DIN, ROC).',
+        description: 'Specialized Class 3 DSC optimized for Ministry of Corporate Affairs (MCA21 & V3 portal), Director Identification Number (DIN) registration, and ROC compliance.',
+        fullDescription: 'Guaranteed compatibility with MCA V3 portal for signing Spice+ company incorporation forms, Annual Returns (AOC-4, MGT-7), DIR-3 KYC, and Board resolutions. Includes priority support for quick registration on MCA portal.',
+        price: 2499,
+        basePrice: 2499,
+        validity: '1 Year',
+        validityOptions: [
+          { years: 1, price: 2499, discountPrice: 2199 },
+          { years: 2, price: 3499, discountPrice: 2999 },
+          { years: 3, price: 4499, discountPrice: 3899 }
+        ],
+        image: 'ncode',
+        features: [
+          'MCA21 & MCA V3 Portal Certified',
+          'DIN (Director Identification Number) Compatible',
+          'ROC Annual Filing & Incorporation Compliant',
+          'Fast Track 15-Minute Issuance',
+          'Free MCA Registration Assistance'
+        ],
+        suitableFor: [
+          'Company Directors (DIN Holders)',
+          'Company Secretaries & Practicing CAs',
+          'Startup Founders Incorporating New Companies',
+          'Designated Partners of LLPs'
+        ],
+        requiredDocuments: [
+          'Director PAN Card',
+          'Director Aadhaar Card',
+          'Passport Size Photograph',
+          'DIN Details (if existing director)'
+        ],
+        isPopular: false,
+        isActive: true,
+        hasEncryption: false,
+        deliveryMethod: 'USB_TOKEN_FIPS'
+      },
+      {
+        name: 'Document Signer DSC',
+        slug: 'document-signer-dsc',
+        category: 'Document Signer',
+        shortDescription: 'For bulk document signing.',
+        description: 'High-speed automated bulk signing certificate for corporate ERPs, GST e-Invoicing, salary slips, and digital contracts without manual PIN prompts.',
+        fullDescription: 'The Document Signer Certificate allows enterprises to automate digital signing of high-volume PDF documents including GST e-Invoices, salary slips, Form 16, account statements, and vendor contracts. Supports server-side batch signing through API and ERP connectors.',
+        price: 2999,
+        basePrice: 2999,
+        validity: '1 Year',
+        validityOptions: [
+          { years: 1, price: 2999, discountPrice: 2699 },
+          { years: 2, price: 4999, discountPrice: 4299 },
+          { years: 3, price: 6999, discountPrice: 5899 }
+        ],
+        image: 'emudhra',
+        features: [
+          'High Volume Automated Batch Signing',
+          'Integration with SAP, Oracle, Tally, & Zoho',
+          'GST e-Invoicing & Form 16 Bulk Signing',
+          'Enterprise HSM & Token Supported',
+          'Dedicated Technical Integration Specialist'
+        ],
+        suitableFor: [
+          'Enterprises & Large Corporations',
+          'Fintechs, Banks & NBFCs',
+          'Automated e-Invoicing Systems',
+          'HR & Payroll Departments'
+        ],
+        requiredDocuments: [
+          'Company PAN & Incorporation Certificate',
+          'Board Resolution authorizing applicant',
+          'Authorized Signatory PAN & Aadhaar',
+          'GST Registration Certificate'
+        ],
+        isPopular: false,
+        isActive: true,
+        hasEncryption: false,
+        deliveryMethod: 'USB_TOKEN_FIPS'
+      }
+    ];
 
-      await Product.insertMany(products);
-      console.log(`[Seed] ${products.length} DSC products seeded successfully.`);
-    }
+    await Product.insertMany(products);
+    console.log(`[Seed] ${products.length} DSC products seeded successfully.`);
 
-    // 4. Default Settings
-    const settingsCount = await Settings.countDocuments();
-    if (settingsCount === 0) {
-      await Settings.create({
-        key: 'BUSINESS_INFO',
-        value: {
-          brandName: 'SimplDSC',
-          tagline: 'Digital Signatures, Made Simple.',
-          companyLegalName: 'SIMPLDSC TECHNOLOGIES PVT LTD',
-          gstin: '29AABCS1429B1Z8',
-          supportEmail: 'support@simpldsc.in',
-          supportPhone: '+91 80 4719 2800',
-          address: 'Plot 42, Cyber Gateway Tech Zone, Whitefield, Bangalore, Karnataka - 560066',
-          renewalReminderDays: [60, 30, 15, 7]
-        },
-        description: 'Core business and legal settings'
-      });
-      console.log('[Seed] Default settings seeded.');
-    }
+    // 4. Seed FAQs
+    await FAQ.deleteMany({});
+    const faqs = [
+      {
+        question: 'What is a Digital Signature Certificate (DSC)?',
+        answer: 'A Digital Signature Certificate (DSC) is a secure digital equivalent of a handwritten signature, issued by government-approved Certifying Authorities (CAs) under the Information Technology Act, 2000. It establishes your identity electronically when filing official government forms and documents.',
+        category: 'General',
+        order: 1,
+        isActive: true
+      },
+      {
+        question: 'How is DSC different from a scanned signature?',
+        answer: 'A scanned signature is merely an image of a handwritten signature that can easily be copied or forged without cryptographic validation. A DSC uses asymmetric 2048-bit cryptography to cryptographically seal the document, guaranteeing authenticity, non-repudiation, and detection of any tampering.',
+        category: 'General',
+        order: 2,
+        isActive: true
+      },
+      {
+        question: 'Which DSC should I choose?',
+        answer: 'For individual Income Tax, GST, and MCA filings, a Class 3 Individual Signing DSC is recommended. If you participate in government tenders, GeM bidding, or defence contracts, you need a Class 3 Combo (Signing + Encryption) DSC. For foreign trade, choose a DGFT DSC.',
+        category: 'Usage',
+        order: 3,
+        isActive: true
+      },
+      {
+        question: 'What documents are required?',
+        answer: 'For individuals: PAN card, Aadhaar card (for paperless eKYC OTP verification), a recent passport-sized photograph, and active mobile number. For organizations: In addition to applicant identity proof, GST certificate, Company PAN, and Board Resolution/Authorization letter are required.',
+        category: 'Documentation',
+        order: 4,
+        isActive: true
+      },
+      {
+        question: 'How long does it take to get a DSC?',
+        answer: 'With our instant paperless Aadhaar eKYC and video verification process, your DSC application is typically approved and issued within 15 to 30 minutes! USB hardware tokens are dispatched the same business day via express courier.',
+        category: 'Process',
+        order: 5,
+        isActive: true
+      },
+      {
+        question: 'Is video verification mandatory?',
+        answer: 'Yes, as per guidelines established by the Controller of Certifying Authorities (CCA), Government of India, a quick 30-second selfie video recording is mandatory to verify the applicant identity and prevent identity theft.',
+        category: 'Verification',
+        order: 6,
+        isActive: true
+      },
+      {
+        question: 'Will I get a physical token?',
+        answer: 'Yes! When you select the USB crypto token option, we dispatch a certified FIPS 140-2 Level 2 USB hardware token (such as ePass2003 or mToken) directly to your shipping address with real-time tracking.',
+        category: 'Delivery',
+        order: 7,
+        isActive: true
+      },
+      {
+        question: 'Can I use DSC for GST, MCA and Income Tax?',
+        answer: 'Yes! A single Class 3 Digital Signature Certificate can be registered and used across all Indian government portals including Income Tax e-Filing, GST, MCA V3, EPFO, and TRACES.',
+        category: 'Usage',
+        order: 8,
+        isActive: true
+      },
+      {
+        question: 'What is the validity of a DSC?',
+        answer: 'Digital Signature Certificates can be issued with a validity period of 1 Year, 2 Years, or 3 Years as per your selection during checkout. You can choose the plan that best suits your compliance frequency.',
+        category: 'Validity',
+        order: 9,
+        isActive: true
+      },
+      {
+        question: 'How can I renew my DSC?',
+        answer: 'You can easily renew your existing DSC online through SimplDSC before or after expiry by completing a quick renewal application with paperless Aadhaar verification. Existing USB tokens can also be updated directly.',
+        category: 'Renewal',
+        order: 10,
+        isActive: true
+      }
+    ];
+
+    await FAQ.insertMany(faqs);
+    console.log(`[Seed] ${faqs.length} FAQs seeded successfully.`);
+
+    // 5. Default Settings
+    await Settings.deleteMany({});
+    await Settings.create({
+      key: 'BUSINESS_INFO',
+      value: {
+        brandName: 'SimplDSC',
+        tagline: 'Digital Signatures, Made Simple.',
+        companyLegalName: 'SIMPLDSC TECHNOLOGIES PVT LTD',
+        gstin: '29AABCS1429B1Z8',
+        supportEmail: 'support@simpldsc.in',
+        supportPhone: '+91 98765 43210',
+        address: 'Plot No. 123, 2nd Floor, Saheed Nagar, Bhubaneswar, Odisha - 751007, India',
+        renewalReminderDays: [60, 30, 15, 7]
+      },
+      description: 'Core business and legal settings'
+    });
+    console.log('[Seed] Default settings seeded.');
 
     console.log('[Seed] Database seeding completed successfully.');
   } catch (error) {

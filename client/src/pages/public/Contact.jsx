@@ -1,245 +1,279 @@
 import React, { useState } from 'react';
-import { Button } from '../../components/ui/Button.jsx';
-import { useToast } from '../../contexts/ToastContext.jsx';
-import { MapPin, Phone, Mail, Clock, Send, MessageSquare, CheckCircle2 } from 'lucide-react';
+import axios from 'axios';
+import {
+  MapPin,
+  Phone,
+  Mail,
+  Globe2,
+  Send,
+  CheckCircle2,
+  AlertCircle,
+  Loader2
+} from 'lucide-react';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export const Contact = () => {
-  const { success, error } = useToast();
-  const [loading, setLoading] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
-    mobile: '',
     email: '',
-    category: 'GENERAL_INQUIRY',
-    subject: '',
+    phone: '',
     message: ''
   });
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (error) setError(null);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.mobile || !formData.message) {
-      error('Please fill in your name, mobile, and message.');
+    if (!formData.name.trim() || !formData.email.trim() || !formData.phone.trim() || !formData.message.trim()) {
+      setError('Please fill out all required fields.');
       return;
     }
 
-    setLoading(true);
-    // Simulate support ticket submission or inquiry
-    setTimeout(() => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await axios.post(`${API_BASE}/contact`, formData);
+      if (res.data?.success) {
+        setSuccess(true);
+        setFormData({ name: '', email: '', phone: '', message: '' });
+      }
+    } catch (err) {
+      console.error('Failed to submit contact:', err);
+      setError(err.response?.data?.message || 'Failed to send message. Please try again.');
+    } finally {
       setLoading(false);
-      setSubmitted(true);
-      success('Your inquiry has been received! Our CA support team will call you within 30 minutes.');
-    }, 800);
+    }
   };
 
   return (
-    <div className="py-12 sm:py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="text-center max-w-3xl mx-auto space-y-3 mb-16">
-        <span className="text-xs font-bold uppercase tracking-wider text-indigo-600">
-          Dedicated Assistance
-        </span>
-        <h1 className="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight font-sans">
-          Get in Touch With Our Experts
-        </h1>
-        <p className="text-sm sm:text-base text-slate-500 leading-relaxed">
-          Need help choosing the right DSC, bulk organizational pricing, or troubleshooting token drivers? We are here to help.
-        </p>
-      </div>
+    <div className="min-h-screen bg-[#FAF9FF] text-[#16162D] py-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+        {/* Header matching screenshot 8 */}
+        <div className="text-center max-w-3xl mx-auto space-y-3">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#11112F] tracking-tight">
+            Get in Touch
+          </h1>
+          <p className="text-base sm:text-lg text-[#70708A]">
+            We're here to help. Reach out to us for any queries or support.
+          </p>
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-        {/* Contact Information */}
-        <div className="lg:col-span-5 space-y-6">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-card space-y-6">
-            <h3 className="text-lg font-bold text-slate-900">Head Office</h3>
-
-            <div className="space-y-4 text-xs sm:text-sm text-slate-600">
-              <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+        {/* 2-Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+          {/* Left Column: Office & Contact Info */}
+          <div className="lg:col-span-5 space-y-6">
+            <div className="bg-white rounded-3xl p-8 border border-[#E5E2F0] shadow-card space-y-6">
+              {/* Our Office */}
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-xl bg-[#F3EFFF] text-[#5B2EFF] flex items-center justify-center shrink-0 mt-0.5">
                   <MapPin className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="font-bold text-slate-900">SimplDSC Technologies Pvt Ltd</p>
-                  <p className="text-slate-500 mt-0.5 leading-relaxed">
-                    Plot 42, Cyber Gateway Tech Zone, Whitefield, Bangalore, Karnataka - 560066
+                  <h3 className="text-base font-bold text-[#11112F]">Our Office</h3>
+                  <p className="text-xs text-[#70708A] mt-1 leading-relaxed">
+                    Plot No. 123, 2nd Floor, Saheed Nagar, <br />
+                    Bhubaneswar, Odisha - 751007, India
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+              {/* Phone */}
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-xl bg-[#F3EFFF] text-[#5B2EFF] flex items-center justify-center shrink-0 mt-0.5">
                   <Phone className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="font-bold text-slate-900">+91 80 4719 2800</p>
-                  <p className="text-[11px] text-slate-400">Toll-free customer hotline</p>
+                  <h3 className="text-base font-bold text-[#11112F]">+91 98765 43210</h3>
+                  <p className="text-xs text-[#70708A] mt-1">Mon – Sat, 9:00 AM – 6:00 PM</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+              {/* Email */}
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-xl bg-[#F3EFFF] text-[#5B2EFF] flex items-center justify-center shrink-0 mt-0.5">
                   <Mail className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="font-bold text-slate-900">support@simpldsc.in</p>
-                  <p className="text-[11px] text-slate-400">Response within 1 business hour</p>
+                  <h3 className="text-base font-bold text-[#11112F]">support@simpldsc.in</h3>
+                  <p className="text-xs text-[#70708A] mt-1">Prompt responses within 15 minutes</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                  <Clock className="w-5 h-5" />
+              {/* Pan India Service */}
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-xl bg-[#F3EFFF] text-[#5B2EFF] flex items-center justify-center shrink-0 mt-0.5">
+                  <Globe2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="font-bold text-slate-900">Business Hours</p>
-                  <p className="text-[11px] text-slate-400">Monday – Saturday: 9:00 AM – 7:00 PM IST</p>
+                  <h3 className="text-base font-bold text-[#11112F]">Pan India Service</h3>
+                  <p className="text-xs text-[#70708A] mt-1">We serve customers across all states & UTs</p>
                 </div>
+              </div>
+
+              {/* Follow Us */}
+              <div className="pt-4 border-t border-slate-100">
+                <p className="text-xs font-bold text-[#70708A] uppercase tracking-wider mb-3">
+                  Follow Us
+                </p>
+                <div className="flex items-center gap-3">
+                  <a
+                    href="https://linkedin.com"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-9 h-9 rounded-full bg-[#FAF9FF] border border-[#E5E2F0] hover:bg-[#5B2EFF] hover:text-white text-[#70708A] flex items-center justify-center transition-colors"
+                  >
+                    <span className="font-bold text-xs">in</span>
+                  </a>
+                  <a
+                    href="https://twitter.com"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-9 h-9 rounded-full bg-[#FAF9FF] border border-[#E5E2F0] hover:bg-[#5B2EFF] hover:text-white text-[#70708A] flex items-center justify-center transition-colors"
+                  >
+                    <span className="font-bold text-xs">X</span>
+                  </a>
+                  <a
+                    href="https://youtube.com"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-9 h-9 rounded-full bg-[#FAF9FF] border border-[#E5E2F0] hover:bg-[#5B2EFF] hover:text-white text-[#70708A] flex items-center justify-center transition-colors"
+                  >
+                    <span className="font-bold text-xs">YT</span>
+                  </a>
+                  <a
+                    href="https://instagram.com"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-9 h-9 rounded-full bg-[#FAF9FF] border border-[#E5E2F0] hover:bg-[#5B2EFF] hover:text-white text-[#70708A] flex items-center justify-center transition-colors"
+                  >
+                    <span className="font-bold text-xs">IG</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* Map Preview Card matching Screenshot 8 */}
+            <div className="bg-white rounded-3xl p-6 border border-[#E5E2F0] shadow-card flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 border border-rose-100">
+                <MapPin className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-[#11112F]">SimplDSC Bhubaneswar</h4>
+                <p className="text-xs text-[#70708A]">Saheed Nagar, Bhubaneswar, Odisha</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-indigo-600 rounded-3xl p-6 sm:p-8 text-white space-y-2">
-            <h4 className="text-base font-bold">Fast-Track Enterprise Enquiries</h4>
-            <p className="text-xs text-indigo-100 leading-relaxed">
-              Are you a CA firm, corporate secretarial practice, or enterprise seeking bulk DSC tokens (50+ certificates)? Contact enterprise@simpldsc.in for special SLA terms.
-            </p>
-          </div>
-        </div>
-
-        {/* Contact Form */}
-        <div className="lg:col-span-7">
-          <div className="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200 shadow-card">
-            {submitted ? (
-              <div className="text-center py-12 space-y-4 animate-fade-in">
-                <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto">
+          {/* Right Column: Contact Form */}
+          <div className="lg:col-span-7 bg-white rounded-3xl p-8 sm:p-10 border border-[#E5E2F0] shadow-card">
+            {success ? (
+              <div className="py-12 text-center space-y-4">
+                <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-200">
                   <CheckCircle2 className="w-8 h-8" />
                 </div>
-                <h3 className="text-xl font-bold text-slate-900">Message Sent Successfully!</h3>
-                <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
-                  Thank you for reaching out. One of our compliance officers has received your ticket and will follow up with you directly.
+                <h3 className="text-2xl font-bold text-[#11112F]">Message Sent!</h3>
+                <p className="text-sm text-[#70708A] max-w-sm mx-auto">
+                  Your message has been sent successfully. One of our DSC specialists will get back to you shortly.
                 </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSubmitted(false);
-                    setFormData({
-                      name: '',
-                      mobile: '',
-                      email: '',
-                      category: 'GENERAL_INQUIRY',
-                      subject: '',
-                      message: ''
-                    });
-                  }}
+                <button
+                  onClick={() => setSuccess(false)}
+                  className="px-6 py-2.5 rounded-full bg-[#5B2EFF] text-white text-xs font-semibold hover:bg-[#4A22DE]"
                 >
                   Send Another Message
-                </Button>
+                </button>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <h3 className="text-lg font-bold text-slate-900 mb-2">Send Us an Inquiry</h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">
-                      Your Full Name *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Rahul Sharma"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                    />
+              <form onSubmit={handleSubmit} className="space-y-5">
+                {error && (
+                  <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-2.5 text-xs font-semibold text-rose-700">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{error}</span>
                   </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">
-                      Mobile Number (10 digits) *
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      placeholder="9876543210"
-                      value={formData.mobile}
-                      onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">
-                      Email Address
-                    </label>
-                    <input
-                      type="email"
-                      placeholder="rahul@example.com"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">
-                      Inquiry Category
-                    </label>
-                    <select
-                      value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none bg-white"
-                    >
-                      <option value="GENERAL_INQUIRY">General Inquiry</option>
-                      <option value="DSC_FINDER">Choosing Right DSC</option>
-                      <option value="TOKEN_SUPPORT">USB Token Setup Support</option>
-                      <option value="ENTERPRISE">Enterprise / Bulk Purchase</option>
-                      <option value="BILLING">Billing & Invoicing</option>
-                    </select>
-                  </div>
-                </div>
+                )}
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Subject
+                  <label className="block text-xs font-bold text-[#16162D] mb-1.5">
+                    Your Name *
                   </label>
                   <input
                     type="text"
-                    placeholder="Brief description of your query"
-                    value={formData.subject}
-                    onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    placeholder="Enter your full name"
+                    required
+                    className="w-full px-4 py-3 rounded-xl border border-[#E5E2F0] bg-[#FAF9FF] text-sm text-[#16162D] focus:outline-none focus:border-[#5B2EFF] focus:bg-white transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Your Message / Question *
+                  <label className="block text-xs font-bold text-[#16162D] mb-1.5">
+                    Your Email *
                   </label>
-                  <textarea
-                    rows={4}
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    placeholder="name@example.com"
                     required
-                    placeholder="Provide details so we can best advise you..."
-                    value={formData.message}
-                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                    className="w-full px-4 py-3 rounded-xl border border-[#E5E2F0] bg-[#FAF9FF] text-sm text-[#16162D] focus:outline-none focus:border-[#5B2EFF] focus:bg-white transition-all"
                   />
                 </div>
 
-                <div className="pt-2">
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    size="lg"
-                    className="w-full"
-                    isLoading={loading}
-                  >
-                    <span>Submit Inquiry</span>
-                    <Send className="w-4 h-4 ml-2" />
-                  </Button>
+                <div>
+                  <label className="block text-xs font-bold text-[#16162D] mb-1.5">
+                    Phone Number *
+                  </label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    placeholder="+91 98765 43210"
+                    required
+                    className="w-full px-4 py-3 rounded-xl border border-[#E5E2F0] bg-[#FAF9FF] text-sm text-[#16162D] focus:outline-none focus:border-[#5B2EFF] focus:bg-white transition-all"
+                  />
                 </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#16162D] mb-1.5">
+                    How can we help you? *
+                  </label>
+                  <textarea
+                    name="message"
+                    rows="4"
+                    value={formData.message}
+                    onChange={handleChange}
+                    placeholder="Tell us about the DSC you require or any specific queries..."
+                    required
+                    className="w-full px-4 py-3 rounded-xl border border-[#E5E2F0] bg-[#FAF9FF] text-sm text-[#16162D] focus:outline-none focus:border-[#5B2EFF] focus:bg-white transition-all resize-none"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-[#5B2EFF] text-white font-bold text-sm hover:bg-[#4A22DE] transition-all duration-200 shadow-md inline-flex items-center justify-center gap-2 group active:scale-95 disabled:opacity-50"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" /> Sending...
+                    </>
+                  ) : (
+                    <>
+                      <span>Send Message</span>
+                      <Send className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
+                </button>
               </form>
             )}
           </div>

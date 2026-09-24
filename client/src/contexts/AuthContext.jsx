@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import axios from 'axios';
 import { authApi } from '../api/endpoints.js';
 import { retryMSG91Otp, sendMSG91Otp, verifyMSG91Otp } from '../api/msg91Widget.js';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const AuthContext = createContext(null);
 
@@ -25,14 +28,16 @@ export const AuthProvider = ({ children }) => {
       return;
     }
     try {
-      const data = await authApi.getMe();
-      if (data?.user) {
-        setUser(data.user);
-        localStorage.setItem('simpldsc_user', JSON.stringify(data.user));
+      const res = await axios.get(`${API_BASE}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const userData = res.data?.user || res.data?.data;
+      if (userData) {
+        setUser(userData);
+        localStorage.setItem('simpldsc_user', JSON.stringify(userData));
       }
     } catch (err) {
       console.warn('[Auth] Session sync failed:', err.message);
-      // If token expired, clear local storage
       setUser(null);
       setToken(null);
       localStorage.removeItem('simpldsc_token');
@@ -45,6 +50,46 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     refreshUser();
   }, [refreshUser]);
+
+  // Standard Email & Password Login
+  const login = async (email, password) => {
+    const res = await axios.post(`${API_BASE}/auth/login`, { email, password });
+    if (res.data?.success) {
+      const authToken = res.data.token || res.data.data?.token;
+      const authUser = res.data.user || res.data.data?.user;
+      setToken(authToken);
+      setUser(authUser);
+      localStorage.setItem('simpldsc_token', authToken);
+      localStorage.setItem('simpldsc_user', JSON.stringify(authUser));
+      return res.data;
+    }
+    throw new Error(res.data?.message || 'Login failed');
+  };
+
+  // Standard Registration
+  const register = async ({ name, email, phone, mobile, password }) => {
+    const res = await axios.post(`${API_BASE}/auth/register`, {
+      name,
+      email,
+      phone: phone || mobile,
+      password
+    });
+    if (res.data?.success) {
+      const authToken = res.data.data?.token || res.data.token;
+      const authUser = res.data.data?.user || res.data.user;
+      setToken(authToken);
+      setUser(authUser);
+      localStorage.setItem('simpldsc_token', authToken);
+      localStorage.setItem('simpldsc_user', JSON.stringify(authUser));
+      return res.data;
+    }
+    throw new Error(res.data?.message || 'Registration failed');
+  };
+
+  // Admin login
+  const adminLogin = async (email, password) => {
+    return login(email, password);
+  };
 
   // Request Mobile OTP
   const sendOtp = async (mobile, purpose = 'LOGIN') => {
@@ -76,22 +121,10 @@ export const AuthProvider = ({ children }) => {
     return res;
   };
 
-  // Admin login with email and password
-  const adminLogin = async (email, password) => {
-    const res = await authApi.adminLogin(email, password);
-    if (res?.token && res?.user) {
-      setToken(res.token);
-      setUser(res.user);
-      localStorage.setItem('simpldsc_token', res.token);
-      localStorage.setItem('simpldsc_user', JSON.stringify(res.user));
-    }
-    return res;
-  };
-
   // Logout
   const logout = async () => {
     try {
-      await authApi.logout();
+      await axios.post(`${API_BASE}/auth/logout`);
     } catch (err) {
       console.warn('[Auth] Logout API call error:', err);
     } finally {
@@ -103,9 +136,10 @@ export const AuthProvider = ({ children }) => {
   };
 
   const isAuthenticated = !!token && !!user;
-  const isCustomer = user?.role === 'CUSTOMER';
-  const isAdmin = user?.role === 'ADMIN';
-  const isStaff = user?.role === 'STAFF' || isAdmin;
+  const normalizedRole = (user?.role || '').toLowerCase();
+  const isAdmin = normalizedRole === 'admin';
+  const isStaff = normalizedRole === 'admin' || normalizedRole === 'staff';
+  const isCustomer = !isAdmin;
 
   return (
     <AuthContext.Provider
@@ -117,10 +151,12 @@ export const AuthProvider = ({ children }) => {
         isCustomer,
         isAdmin,
         isStaff,
+        login,
+        register,
+        adminLogin,
         sendOtp,
         resendOtp,
         verifyOtp,
-        adminLogin,
         logout,
         refreshUser
       }}

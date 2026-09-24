@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { USER_ROLES, USER_STATUS } from '../config/constants.js';
+import bcrypt from 'bcryptjs';
 
 const addressSchema = new mongoose.Schema({
   street: { type: String, trim: true },
@@ -15,30 +15,39 @@ const userSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  mobile: {
+  email: {
     type: String,
     required: true,
     unique: true,
     index: true,
+    trim: true,
+    lowercase: true
+  },
+  phone: {
+    type: String,
     trim: true
   },
-  email: {
+  mobile: {
     type: String,
-    required: false,
-    trim: true,
-    lowercase: true,
-    sparse: true
+    trim: true
+  },
+  password: {
+    type: String,
+    select: false
   },
   role: {
     type: String,
-    enum: Object.values(USER_ROLES),
-    default: USER_ROLES.CUSTOMER,
+    enum: ['user', 'customer', 'CUSTOMER', 'admin', 'ADMIN', 'staff', 'STAFF'],
+    default: 'user',
     index: true
+  },
+  isVerified: {
+    type: Boolean,
+    default: true
   },
   status: {
     type: String,
-    enum: Object.values(USER_STATUS),
-    default: USER_STATUS.ACTIVE
+    default: 'ACTIVE'
   },
   panNumber: {
     type: String,
@@ -65,5 +74,29 @@ const userSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+// Pre-save to synchronize phone & mobile, and hash password
+userSchema.pre('save', async function (next) {
+  if (this.phone && !this.mobile) this.mobile = this.phone;
+  if (this.mobile && !this.phone) this.phone = this.mobile;
+
+  if (!this.isModified('password') || !this.password) {
+    return next();
+  }
+
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Method to verify password
+userSchema.methods.comparePassword = async function (enteredPassword) {
+  if (!this.password) return false;
+  return await bcrypt.compare(enteredPassword, this.password);
+};
 
 export const User = mongoose.model('User', userSchema);

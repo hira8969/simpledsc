@@ -1,250 +1,174 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { productApi } from '../../api/endpoints.js';
-import { Button } from '../../components/ui/Button.jsx';
-import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton.jsx';
-import {
-  CheckCircle2,
-  FileCheck,
-  Usb,
-  ShieldCheck,
-  Search,
-  Filter,
-  ArrowRight,
-  Sparkles
-} from 'lucide-react';
+import axios from 'axios';
+import { UsbTokenVisual } from '../../components/ui/UsbTokenVisual.jsx';
+import { ArrowRight, Loader2, AlertCircle } from 'lucide-react';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export const Products = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedValidity, setSelectedValidity] = useState({}); // { [productId]: years }
+  const [error, setError] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState('All');
+
+  const categories = ['All', 'Class 2 DSC', 'Class 3 DSC', 'DGFT', 'eTender', 'MCA'];
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const res = await productApi.getProducts();
-        if (res?.data) {
-          setProducts(res.data);
-          // Set default 2 years for each product
-          const defaults = {};
-          res.data.forEach((p) => {
-            defaults[p._id] = 2;
-          });
-          setSelectedValidity(defaults);
-        }
-      } catch (err) {
-        console.error('Error fetching products:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchProducts();
-  }, []);
+  }, [selectedCategory]);
 
-  const categories = [
-    { id: 'ALL', label: 'All DSCs' },
-    { id: 'CLASS_3_INDIVIDUAL', label: 'Class 3 Individual' },
-    { id: 'CLASS_3_ORGANIZATION', label: 'Organization DSC' },
-    { id: 'DGFT', label: 'DGFT (Import/Export)' },
-    { id: 'DOCUMENT_SIGNER', label: 'Document Signer' }
-  ];
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const url = selectedCategory === 'All'
+        ? `${API_BASE}/products`
+        : `${API_BASE}/products?category=${encodeURIComponent(selectedCategory)}`;
+      
+      const res = await axios.get(url);
+      if (res.data?.success && res.data?.data) {
+        setProducts(res.data.data);
+      } else {
+        setProducts(res.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch products:', err);
+      setError('Unable to load products. Please check your connection.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const filteredProducts = products.filter((p) => {
-    const matchesCategory = selectedCategory === 'ALL' || p.category === selectedCategory;
-    const matchesSearch =
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.shortDescription?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
-
-  const handleValidityChange = (productId, years) => {
-    setSelectedValidity((prev) => ({ ...prev, [productId]: years }));
+  const getTokenBrand = (slug, category) => {
+    const s = (slug || '').toLowerCase();
+    const c = (category || '').toLowerCase();
+    if (s.includes('dgft') || c.includes('dgft')) return 'vsign';
+    if (s.includes('tender') || c.includes('tender')) return 'capsigns';
+    if (s.includes('mca') || c.includes('mca')) return 'ncode';
+    if (s.includes('signer') || c.includes('signer')) return 'emudhra';
+    return 'epass2003';
   };
 
   return (
-    <div className="py-12 sm:py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      {/* Title & Subheading */}
-      <div className="text-center max-w-3xl mx-auto space-y-3 mb-12">
-        <span className="text-xs font-bold uppercase tracking-wider text-indigo-600">
-          CCA India Authorized
-        </span>
-        <h1 className="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight font-sans">
-          Digital Signature Certificates Catalog
-        </h1>
-        <p className="text-sm sm:text-base text-slate-500 leading-relaxed">
-          Government-authorized Class 3, DGFT, and Enterprise DSCs with plug-and-play USB hardware crypto tokens.
-        </p>
-      </div>
+    <div className="min-h-screen bg-[#FAF9FF] text-[#16162D] py-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+        {/* Header */}
+        <div className="text-center max-w-3xl mx-auto space-y-3">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#11112F] tracking-tight">
+            Our DSC Products
+          </h1>
+          <p className="text-base sm:text-lg text-[#70708A]">
+            Choose from a range of Digital Signature Certificates issued by government-authorized Certifying Authorities.
+          </p>
+        </div>
 
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-10 pb-6 border-b border-slate-200">
         {/* Category Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-2 md:pb-0">
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
           {categories.map((cat) => (
             <button
-              key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-                selectedCategory === cat.id
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-5 py-2.5 rounded-full text-xs sm:text-sm font-semibold transition-all ${
+                selectedCategory === cat
+                  ? 'bg-[#5B2EFF] text-white shadow-md'
+                  : 'bg-white border border-[#E5E2F0] text-[#70708A] hover:text-[#16162D] hover:bg-slate-50'
               }`}
             >
-              {cat.label}
+              {cat}
             </button>
           ))}
         </div>
 
-        {/* Search Input */}
-        <div className="relative w-full md:w-72">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Search by name, use case..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-xl text-xs border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-          />
-        </div>
-      </div>
+        {/* Loading State */}
+        {loading && (
+          <div className="py-20 flex flex-col items-center justify-center space-y-3">
+            <Loader2 className="w-8 h-8 text-[#5B2EFF] animate-spin" />
+            <p className="text-sm font-medium text-[#70708A]">Loading products from server...</p>
+          </div>
+        )}
 
-      {/* Products Grid */}
-      {loading ? (
-        <LoadingSkeleton count={6} />
-      ) : filteredProducts.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredProducts.map((prod) => {
-            const currentValidityYears = selectedValidity[prod._id] || 2;
-            const chosenOption =
-              prod.validityOptions?.find((v) => v.years === currentValidityYears) ||
-              prod.validityOptions?.[0];
+        {/* Error State */}
+        {error && !loading && (
+          <div className="max-w-md mx-auto p-6 rounded-2xl bg-rose-50 border border-rose-200 text-center space-y-3">
+            <AlertCircle className="w-8 h-8 text-rose-600 mx-auto" />
+            <p className="text-sm font-semibold text-rose-700">{error}</p>
+            <button
+              onClick={fetchProducts}
+              className="px-4 py-2 rounded-full bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700"
+            >
+              Try Again
+            </button>
+          </div>
+        )}
 
-            return (
-              <div
-                key={prod._id}
-                className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 hover:border-indigo-400 shadow-card hover:shadow-card-hover transition-all flex flex-col justify-between group"
-              >
-                <div className="space-y-4">
-                  {/* Card Badges */}
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold border border-indigo-100">
-                      {prod.hasEncryption ? 'Signing + Encryption' : 'Signing Only'}
-                    </span>
-                    {prod.popularTag && (
-                      <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-[11px] font-bold border border-amber-200">
-                        ★ Popular
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Title & Description */}
-                  <div>
-                    <h2 className="text-lg sm:text-xl font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
-                      {prod.name}
-                    </h2>
-                    <p className="text-xs text-slate-500 mt-2 leading-relaxed line-clamp-2">
-                      {prod.shortDescription}
-                    </p>
-                  </div>
-
-                  {/* Validity Selector Buttons */}
-                  <div className="pt-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
-                      Select Validity Period
-                    </label>
-                    <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-50 rounded-xl border border-slate-200">
-                      {(prod.validityOptions || []).map((opt) => (
-                        <button
-                          key={opt.years}
-                          type="button"
-                          onClick={() => handleValidityChange(prod._id, opt.years)}
-                          className={`py-1.5 text-xs font-bold rounded-lg transition-all ${
-                            currentValidityYears === opt.years
-                              ? 'bg-white text-indigo-600 shadow-sm border border-slate-100'
-                              : 'text-slate-600 hover:text-slate-900'
-                          }`}
-                        >
-                          {opt.years} {opt.years === 1 ? 'Year' : 'Years'}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Price Block */}
-                  <div className="p-4 rounded-2xl bg-[#F8F9FE] border border-slate-100">
-                    <div className="flex items-baseline justify-between">
-                      <div>
-                        <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-sans">
-                          ₹{chosenOption?.discountPrice || prod.basePrice}
-                        </span>
-                        {chosenOption?.price > chosenOption?.discountPrice && (
-                          <span className="text-xs text-slate-400 line-through ml-2">
-                            ₹{chosenOption.price}
+        {/* Product Cards Grid (Matching reference screenshot 3) */}
+        {!loading && !error && products.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {products.map((product) => {
+              const tokenType = getTokenBrand(product.slug, product.category);
+              return (
+                <div
+                  key={product._id || product.slug}
+                  className="bg-white rounded-3xl p-7 border border-[#E5E2F0] shadow-card hover:shadow-card-hover transition-all duration-300 flex flex-col justify-between group"
+                >
+                  <div className="space-y-4">
+                    {/* Title & Short Description */}
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xl font-bold text-[#11112F]">{product.name}</h3>
+                        {product.isPopular && (
+                          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#F3EFFF] text-[#5B2EFF] border border-purple-200">
+                            Popular
                           </span>
                         )}
                       </div>
-                      <span className="text-[11px] text-slate-400 font-medium">+ 18% GST</span>
+                      <p className="text-xs sm:text-sm text-[#70708A] mt-1.5 min-h-[36px]">
+                        {product.shortDescription || product.description}
+                      </p>
                     </div>
-                    <p className="text-[11px] text-emerald-600 font-medium mt-1">
-                      Includes Free FIPS 140-2 Crypto Token & Courier
-                    </p>
+
+                    {/* Realistic USB Token Visual with subtle hover tilt */}
+                    <div className="py-6 flex items-center justify-center bg-[#FAF9FF] rounded-2xl border border-slate-100 group-hover:bg-[#F3EFFF]/40 transition-colors">
+                      <UsbTokenVisual type={tokenType} size="md" />
+                    </div>
                   </div>
 
-                  {/* Features List */}
-                  <div className="space-y-2 pt-1 text-xs text-slate-600">
-                    {(prod.features || []).slice(0, 4).map((feat, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                        <span className="truncate">{feat}</span>
+                  {/* Price, Validity & View Details Link */}
+                  <div className="pt-6 border-t border-[#E5E2F0] flex items-center justify-between mt-4">
+                    <div>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-2xl font-black text-[#11112F]">
+                          ₹{(product.price || product.basePrice || 1499).toLocaleString('en-IN')}
+                        </span>
                       </div>
-                    ))}
-                  </div>
+                      <span className="text-[11px] text-[#70708A] font-medium">
+                        ({product.validity || '1 Year Validity'})
+                      </span>
+                    </div>
 
-                  {/* Documents Required count */}
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500 pt-1">
-                    <FileCheck className="w-4 h-4 text-slate-400" />
-                    <span>Requires: {(prod.documentsRequired || []).length} identity proofs (PAN, Aadhaar)</span>
+                    <Link
+                      to={`/products/${product.slug}`}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-[#5B2EFF] group-hover:text-[#4A22DE] transition-colors"
+                    >
+                      <span>View Details</span>
+                      <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                    </Link>
                   </div>
                 </div>
+              );
+            })}
+          </div>
+        )}
 
-                {/* CTAs */}
-                <div className="pt-6 grid grid-cols-2 gap-2.5">
-                  <Link to={`/products/${prod.slug}`}>
-                    <Button variant="outline" size="sm" className="w-full">
-                      Specifications
-                    </Button>
-                  </Link>
-                  <Link
-                    to={`/dashboard/buy?product=${prod._id}&validity=${currentValidityYears}`}
-                  >
-                    <Button variant="primary" size="sm" className="w-full">
-                      <span>Buy Now</span>
-                      <ArrowRight className="w-3.5 h-3.5 ml-1" />
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="text-center py-16 bg-white rounded-3xl border border-slate-100 p-8">
-          <p className="text-base font-bold text-slate-700">No products match your search criteria.</p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-4"
-            onClick={() => {
-              setSelectedCategory('ALL');
-              setSearchQuery('');
-            }}
-          >
-            Clear Filters
-          </Button>
-        </div>
-      )}
+        {/* Empty State */}
+        {!loading && !error && products.length === 0 && (
+          <div className="text-center py-20 bg-white rounded-3xl border border-[#E5E2F0] p-8 max-w-md mx-auto">
+            <p className="text-base font-bold text-[#11112F]">No products found</p>
+            <p className="text-xs text-[#70708A] mt-1">Try selecting a different category filter.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
